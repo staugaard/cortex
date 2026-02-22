@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+
+# package manager artifacts
+bun.lockb
+.pnpm-store/
+.npm/
+.yarn/
+
+# build outputs
+dist/
+build/
+out/
+.cache/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# environment and local config
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
