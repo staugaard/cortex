@@ -1,2 +1,92 @@
 @import "tailwindcss";
 @source "../../../../node_modules/streamdown/dist/*.js";
+
+@theme {
+	--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+	--color-surface: #f5f5f7;
+	--color-elevated: #ffffff;
+	--color-separator: rgba(0, 0, 0, 0.09);
+	--color-primary: #1d1d1f;
+	--color-secondary: #86868b;
+	--color-tertiary: #aeaeb2;
+	--color-accent: #007aff;
+	--color-danger: #ff3b30;
+	--color-warning: #ff9500;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+/* ── Native overlay scrollbar ── */
+.native-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.native-scroll::-webkit-scrollbar {
+	width: 6px;
+}
+.native-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.native-scroll::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.12);
+	border-radius: 3px;
+}
+.native-scroll::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 0, 0, 0.25);
+}
+
+/* ── Animations ── */
+@keyframes msg-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.msg-appear {
+	animation: msg-in 0.2s ease-out both;
+}
+
+@keyframes panel-in {
+	from {
+		opacity: 0;
+		transform: translateX(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+.panel-in {
+	animation: panel-in 0.15s ease-out both;
+}
+
+@keyframes toast-in {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.toast-in {
+	animation: toast-in 0.2s ease-out both;
+}
+
