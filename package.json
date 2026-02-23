@@ -1,6 +1,11 @@
 {
   "name": "cortex",
   "private": true,
+  "scripts": {
+    "typecheck:chat-core": "bun run --cwd packages/chat-core typecheck",
+    "typecheck:chat": "bun run --cwd apps/chat typecheck",
+    "typecheck:phase1": "bun run typecheck:chat-core && bun run typecheck:chat"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

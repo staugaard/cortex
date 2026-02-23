@@ -1,0 +1,23 @@
+{
+  "name": "@cortex/chat-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc/index.ts",
+    "./transport-web": "./src/transport-web/index.ts",
+    "./transport-bun": "./src/transport-bun/index.ts",
+    "./persistence": "./src/persistence/index.ts",
+    "./agents": "./src/agents/index.ts"
+  },
+  "scripts": {
+    "typecheck:web": "tsc -p tsconfig.web.json --pretty false",
+    "typecheck:bun": "tsc -p tsconfig.bun.json --pretty false",
+    "typecheck": "bun run typecheck:web && bun run typecheck:bun"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
