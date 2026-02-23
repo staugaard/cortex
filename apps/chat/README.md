@@ -64,6 +64,8 @@ bun run cdp:smoke
 bun run cdp:llm
 ```
 
+Unscripted manual testing in the real app window is always valid and often preferable for flow debugging. CDP scripts are optional helpers for repeatability/artifacts.
+
 Notes:
 - Opening `http://localhost:5174` in a standalone browser does not provide Electrobun-injected globals (`webviewId`, RPC socket port), so app RPC bootstrapping will fail there.
 - CDP mode is intended for debugging/automation; default native renderer mode remains available via `bun run dev` / `bun run dev:hmr`.

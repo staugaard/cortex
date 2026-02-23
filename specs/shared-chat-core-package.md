@@ -193,6 +193,18 @@ Rules for use during development:
 - Add session CRUD and `UIMessage[]` persistence/load flows.
 - Wire persistence through `/Users/staugaard/Code/cortex/apps/chat` conversation lifecycle.
 
+#### Phase 3 Behavioral Contract (Implemented)
+
+- Session creation is implicit via `saveMessages`; there is no explicit create-session RPC.
+- Clients may create provisional IDs prefixed with `tmp:`; persistence remaps them to canonical UUIDs on first save and returns canonical `sessionId`.
+- Clients must adopt returned canonical IDs immediately and preserve current in-memory messages during remap hydration.
+- Save path is non-blocking for title generation:
+  - `saveMessages` persists messages/timestamps/fallback title immediately.
+  - optional title generation runs asynchronously after save when assistant content exists and title is fallback.
+  - title generation is timeout-bounded and failure-safe; failures/timeouts never fail saves.
+- Title regeneration rule: retry generation on later saves while title remains fallback; stop after first successful non-fallback title.
+- Async title upgrades are propagated via server push (`conversationUpdated`) from Bun to webview; frontend should apply updates directly rather than polling.
+
 ### Phase 4: Agent Utilities and Shared Patterns
 
 - Add reusable manager/subagent helper utilities in `@cortex/chat-core/agents`.

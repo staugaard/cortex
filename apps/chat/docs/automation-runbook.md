@@ -59,6 +59,32 @@ bun run dev:hmr
 - session switching keeps messages isolated
 - no `Save Error` toast appears during normal sends/switches
 - reloading the same session restores persisted messages
+- generated session title upgrades from fallback to a concise final title
+
+### Safe Interaction Sequencing (Important)
+Use this order to avoid false negatives caused by lifecycle races:
+
+1. New chat:
+- click `New Chat`
+- wait for empty-state text (`Send a message to get started`)
+- verify Diagnostics `Session` shows a provisional `tmp:` ID before first send
+
+2. First send:
+- submit prompt
+- wait for first assistant response to appear
+- wait until composer is back in `Submit` state (not `Stop`) before next turn
+
+3. Multi-turn:
+- only send next prompt after previous turn is fully done
+- if diagnosing mid-stream behavior, verify Diagnostics `Status` transitions (`submitted/streaming` -> `ready`)
+
+4. Title validation:
+- after first completed assistant turn, title may initially be fallback
+- Bun should push `conversationUpdated` when async title upgrade completes
+- verify rail title changes without manual reload or polling logic
+
+5. Persistence validation:
+- switch away and back, then restart app, and confirm the same session reloads with messages and upgraded title
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 
@@ -68,6 +94,8 @@ bun run dev:hmr:cef
 
 ## Optional Scripted Verification (CDP)
 Run these from `/Users/staugaard/Code/cortex/apps/chat` when you need repeatable scripted checks.
+
+Scripts are optional helpers. Do not block on scripts when direct in-app interaction is faster or clearer for the current debugging task.
 
 1. Confirm CDP endpoint is alive:
 
@@ -136,6 +164,6 @@ Environment knobs for the script:
 
 ## Artifacts
 Generated screenshots are written to:
-- `/Users/staugaard/Code/cortex/apps/chat/output/playwright/`
+- commonly `output/playwright/` relative to the execution directory
 
 Do not commit these artifacts.

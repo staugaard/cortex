@@ -14,7 +14,8 @@ These instructions apply to `/Users/staugaard/Code/cortex/apps/chat`.
 - Bun process entry: `/Users/staugaard/Code/cortex/apps/chat/src/bun/index.ts`
 - Bun RPC + handlers: `/Users/staugaard/Code/cortex/apps/chat/src/bun/chat-rpc.ts`
 - Agent setup: `/Users/staugaard/Code/cortex/apps/chat/src/bun/chat-agent.ts`
-- Temporary persistence store: `/Users/staugaard/Code/cortex/apps/chat/src/bun/chat-memory-store.ts`
+- App-side title generator: `/Users/staugaard/Code/cortex/apps/chat/src/bun/chat-title-generator.ts`
+- Shared SQLite persistence backend: `@cortex/chat-core/persistence` (wired from `chat-rpc.ts`)
 - Webview bootstrap: `/Users/staugaard/Code/cortex/apps/chat/src/mainview/main.tsx`
 - Web RPC bridge: `/Users/staugaard/Code/cortex/apps/chat/src/mainview/chat-rpc.ts`
 - Web transport wiring: `/Users/staugaard/Code/cortex/apps/chat/src/mainview/chat-transport.ts`
@@ -59,6 +60,14 @@ Run inside this workspace:
 - Verify the CDP endpoint with `bun run cdp:check`.
 - Capture a live proof artifact with `bun run cdp:screenshot` (or `bun run cdp:smoke` to submit a test prompt first).
 - Use CDP-aware tools to attach to the running embedded webview rather than opening `http://localhost:5174` in a standalone browser tab.
+
+## Reliable Testing Practices
+- Treat unscripted in-app verification as first-class; scripts are only optional accelerators.
+- After `New Chat`, wait for empty-state + Diagnostics provisional `tmp:` session before first send.
+- Only send next user turn after submit control returns to `Submit` (not `Stop`).
+- Distinguish automation timing failures from product failures before changing code.
+- Validate async title upgrades by observing push-driven UI updates (`conversationUpdated`), not polling loops.
+- Always cross-check UI behavior with persistence reality when debugging save/title issues (session reload and SQLite row state).
 
 ## Manual Validation (when transport/UI behavior changes)
 1. Happy path streaming: submit a prompt and verify incremental assistant output.
