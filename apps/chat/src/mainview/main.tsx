@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { initChatRpcBridge } from "./chat-rpc";
 import "./index.css";
+import "streamdown/styles.css";
 
 initChatRpcBridge();
 

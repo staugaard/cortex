@@ -1,23 +1,10 @@
 import { useChat } from "@ai-sdk/react";
 import { isTextUIPart } from "ai";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Streamdown } from "streamdown";
 import { chatRpc } from "./chat-rpc";
 import { chatTransport } from "./chat-transport";
 import { DEFAULT_SESSION_ID, type ChatUIMessage } from "./chat-types";
-
-function messageText(message: ChatUIMessage): string {
-	const text = message.parts
-		.filter((part) => isTextUIPart(part))
-		.map((part) => part.text)
-		.join("\n")
-		.trim();
-
-	if (text.length > 0) {
-		return text;
-	}
-
-	return "[non-text content]";
-}
 
 export default function App() {
 	const [input, setInput] = useState("");
@@ -71,16 +58,6 @@ export default function App() {
 	useEffect(() => {
 		void loadSession();
 	}, [loadSession]);
-
-	const conversationPreview = useMemo(
-		() =>
-			messages.map((message) => ({
-				id: message.id,
-				role: message.role,
-				text: messageText(message),
-			})),
-		[messages],
-	);
 
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -148,10 +125,10 @@ export default function App() {
 						</div>
 
 						<div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-3">
-							{conversationPreview.length === 0 ? (
+							{messages.length === 0 ? (
 								<p className="text-sm text-slate-500">No messages yet.</p>
 							) : (
-								conversationPreview.map((message) => (
+								messages.map((message) => (
 									<article
 										key={message.id}
 										className={
@@ -163,7 +140,32 @@ export default function App() {
 										<p className="mb-1 text-xs uppercase tracking-wide text-slate-500">
 											{message.role}
 										</p>
-										<p className="whitespace-pre-wrap text-sm">{message.text}</p>
+										<div className="space-y-2 text-sm">
+											{message.parts.map((part, index) => {
+												if (isTextUIPart(part)) {
+													return (
+														<Streamdown
+															key={`${message.id}-text-${index}`}
+															isAnimating={
+																message.role === "assistant" &&
+																(status === "streaming" || status === "submitted")
+															}
+														>
+															{part.text}
+														</Streamdown>
+													);
+												}
+
+												return (
+													<p
+														key={`${message.id}-${part.type}-${index}`}
+														className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600"
+													>
+														[{part.type}]
+													</p>
+												);
+											})}
+										</div>
 									</article>
 								))
 							)}
