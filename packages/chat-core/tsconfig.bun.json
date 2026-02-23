@@ -5,7 +5,6 @@
     "types": ["bun"]
   },
   "include": [
-    "src/index.ts",
     "src/rpc/**/*.ts",
     "src/transport-bun/**/*.ts",
     "src/persistence/**/*.ts",

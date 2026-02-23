@@ -1,115 +1,242 @@
-import { useState } from "react";
+import { useChat } from "@ai-sdk/react";
+import { isTextUIPart } from "ai";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { chatRpc } from "./chat-rpc";
+import { chatTransport } from "./chat-transport";
+import { DEFAULT_SESSION_ID, type ChatUIMessage } from "./chat-types";
 
-function App() {
-	const [count, setCount] = useState(0);
+function messageText(message: ChatUIMessage): string {
+	const text = message.parts
+		.filter((part) => isTextUIPart(part))
+		.map((part) => part.text)
+		.join("\n")
+		.trim();
+
+	if (text.length > 0) {
+		return text;
+	}
+
+	return "[non-text content]";
+}
+
+export default function App() {
+	const [input, setInput] = useState("");
+	const [loadError, setLoadError] = useState<string | null>(null);
+	const [saveError, setSaveError] = useState<string | null>(null);
+
+	const {
+		messages,
+		sendMessage,
+		setMessages,
+		status,
+		error,
+		clearError,
+		stop,
+	} = useChat<ChatUIMessage>({
+		id: DEFAULT_SESSION_ID,
+		transport: chatTransport,
+		onFinish: ({ messages: finishedMessages }) => {
+			void chatRpc.request
+				.saveMessages({
+					sessionId: DEFAULT_SESSION_ID,
+					messages: finishedMessages,
+					title: "Kitchen Sink Session",
+				})
+				.then(() => setSaveError(null))
+				.catch((saveIssue: unknown) => {
+					setSaveError(
+						saveIssue instanceof Error
+							? saveIssue.message
+							: String(saveIssue),
+					);
+				});
+		},
+		onError: (issue) => {
+			setSaveError(issue.message);
+		},
+	});
+
+	const loadSession = useCallback(async () => {
+		try {
+			const result = await chatRpc.request.getConversation({
+				sessionId: DEFAULT_SESSION_ID,
+			});
+			setLoadError(null);
+			setMessages(result.conversation?.messages ?? []);
+		} catch (issue) {
+			setLoadError(issue instanceof Error ? issue.message : String(issue));
+		}
+	}, [setMessages]);
+
+	useEffect(() => {
+		void loadSession();
+	}, [loadSession]);
+
+	const conversationPreview = useMemo(
+		() =>
+			messages.map((message) => ({
+				id: message.id,
+				role: message.role,
+				text: messageText(message),
+			})),
+		[messages],
+	);
+
+	const submit = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const value = input.trim();
+		if (value.length === 0) {
+			return;
+		}
+
+		setInput("");
+		void sendMessage({ text: value });
+	};
+
+	const saveNow = async () => {
+		try {
+			await chatRpc.request.saveMessages({
+				sessionId: DEFAULT_SESSION_ID,
+				messages,
+				title: "Kitchen Sink Session",
+			});
+			setSaveError(null);
+		} catch (issue) {
+			setSaveError(issue instanceof Error ? issue.message : String(issue));
+		}
+	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 text-gray-900">
-			<div className="container mx-auto px-4 py-10 max-w-3xl">
-				<h1 className="text-5xl font-bold text-center text-white mb-2 drop-shadow-lg">
-					React + Tailwind + Vite
-				</h1>
-				<p className="text-xl text-center text-white/90 mb-10">
-					A fast Electrobun app with hot module replacement
-				</p>
-
-				<div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">
-						Interactive Counter
-					</h2>
-					<p className="mb-4 text-gray-600">
-						Click the button below to test React state. With HMR enabled, you
-						can edit this component and see changes instantly without losing
-						state.
+		<div className="min-h-screen bg-slate-100 text-slate-900">
+			<div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8">
+				<header className="mb-6 rounded-xl bg-white p-5 shadow-sm">
+					<h1 className="text-2xl font-semibold">Chat Kitchen Sink</h1>
+					<p className="mt-1 text-sm text-slate-600">
+						Phase 2 transport validation through Electrobun RPC and AI SDK
+						streaming.
 					</p>
-					<div className="flex items-center gap-4">
-						<button
-							onClick={() => setCount((c) => c + 1)}
-							className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg"
-						>
-							Count: {count}
-						</button>
-						<button
-							onClick={() => setCount(0)}
-							className="px-4 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
-						>
-							Reset
-						</button>
+					<div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+						<span className="rounded bg-slate-100 px-2 py-1 font-mono">
+							session: {DEFAULT_SESSION_ID}
+						</span>
+						<span className="rounded bg-slate-100 px-2 py-1">status: {status}</span>
 					</div>
-				</div>
+				</header>
 
-				<div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">
-						Getting Started
-					</h2>
-					<ul className="space-y-3 text-gray-700">
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">1.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run dev
-								</code>{" "}
-								for development without HMR
-							</span>
-						</li>
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">2.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run dev:hmr
-								</code>{" "}
-								for development with hot reload
-							</span>
-						</li>
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">3.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run build
-								</code>{" "}
-								to build for production
-							</span>
-						</li>
-					</ul>
-				</div>
+				<main className="grid flex-1 gap-4 md:grid-cols-[2fr_1fr]">
+					<section className="flex min-h-[420px] flex-col rounded-xl bg-white p-4 shadow-sm">
+						<div className="mb-3 flex items-center justify-between">
+							<h2 className="text-sm font-medium uppercase tracking-wide text-slate-600">
+								Conversation
+							</h2>
+							<div className="flex gap-2">
+								<button
+									type="button"
+									onClick={() => void loadSession()}
+									className="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
+								>
+									Reload Saved
+								</button>
+								<button
+									type="button"
+									onClick={() => void saveNow()}
+									className="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
+								>
+									Save Now
+								</button>
+							</div>
+						</div>
 
-				<div className="bg-white rounded-xl shadow-xl p-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">Stack</h2>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">⚡</div>
-							<div className="font-medium">Electrobun</div>
+						<div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-3">
+							{conversationPreview.length === 0 ? (
+								<p className="text-sm text-slate-500">No messages yet.</p>
+							) : (
+								conversationPreview.map((message) => (
+									<article
+										key={message.id}
+										className={
+											message.role === "user"
+												? "ml-10 rounded-lg bg-sky-100 p-3"
+												: "mr-10 rounded-lg bg-white p-3"
+										}
+									>
+										<p className="mb-1 text-xs uppercase tracking-wide text-slate-500">
+											{message.role}
+										</p>
+										<p className="whitespace-pre-wrap text-sm">{message.text}</p>
+									</article>
+								))
+							)}
 						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">⚛️</div>
-							<div className="font-medium">React</div>
-						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">🎨</div>
-							<div className="font-medium">Tailwind</div>
-						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">🔥</div>
-							<div className="font-medium">Vite HMR</div>
-						</div>
-					</div>
-				</div>
 
-				<div className="text-center text-white/80 mt-10 p-6 bg-white/10 rounded-lg backdrop-blur">
-					<p>
-						Edit{" "}
-						<code className="bg-white/20 px-2 py-1 rounded text-sm">
-							src/mainview/App.tsx
-						</code>{" "}
-						and save to see HMR in action
-					</p>
-				</div>
+						<form onSubmit={submit} className="mt-3 flex gap-2">
+							<input
+								value={input}
+								onChange={(event) => setInput(event.currentTarget.value)}
+								placeholder="Type a prompt"
+								className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+							/>
+							<button
+								type="submit"
+								disabled={status === "streaming" || status === "submitted"}
+								className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+							>
+								Send
+							</button>
+							<button
+								type="button"
+								onClick={stop}
+								disabled={status !== "streaming" && status !== "submitted"}
+								className="rounded border border-slate-300 px-4 py-2 text-sm disabled:opacity-50"
+							>
+								Stop
+							</button>
+						</form>
+					</section>
+
+					<aside className="rounded-xl bg-white p-4 shadow-sm">
+						<h2 className="text-sm font-medium uppercase tracking-wide text-slate-600">
+							Diagnostics
+						</h2>
+						<ul className="mt-3 space-y-2 text-sm">
+							<li>
+								<span className="font-medium">Messages:</span> {messages.length}
+							</li>
+							<li>
+								<span className="font-medium">Status:</span> {status}
+							</li>
+						</ul>
+
+						{error ? (
+							<div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+								<p className="font-medium">Chat Error</p>
+								<p className="mt-1">{error.message}</p>
+								<button
+									type="button"
+									onClick={clearError}
+									className="mt-2 rounded border border-red-200 px-2 py-1 text-xs"
+								>
+									Dismiss
+								</button>
+							</div>
+						) : null}
+
+						{loadError ? (
+							<div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+								<p className="font-medium">Load Error</p>
+								<p className="mt-1">{loadError}</p>
+							</div>
+						) : null}
+
+						{saveError ? (
+							<div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+								<p className="font-medium">Save Error</p>
+								<p className="mt-1">{saveError}</p>
+							</div>
+						) : null}
+					</aside>
+				</main>
 			</div>
 		</div>
 	);
 }
-
-export default App;

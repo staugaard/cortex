@@ -14,7 +14,11 @@
   "scripts": {
     "typecheck:web": "tsc -p tsconfig.web.json --pretty false",
     "typecheck:bun": "tsc -p tsconfig.bun.json --pretty false",
-    "typecheck": "bun run typecheck:web && bun run typecheck:bun"
+    "typecheck": "bun run typecheck:web && bun run typecheck:bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "ai": "^6.0.97"
   },
   "devDependencies": {
     "@types/bun": "latest",
