@@ -31,21 +31,21 @@ function getFirstPage(browser) {
 }
 
 function toMessageCounts() {
-	const articles = Array.from(document.querySelectorAll("article"));
-	const assistantCount = articles.filter(
-		(article) => article.dataset.role === "assistant",
+	const messages = Array.from(document.querySelectorAll('[data-testid="chat-message"]'));
+	const assistantCount = messages.filter(
+		(el) => el.dataset.role === "assistant",
 	).length;
 
 	return {
-		total: articles.length,
+		total: messages.length,
 		assistant: assistantCount,
 	};
 }
 
 function getLastAssistantText() {
-	const articles = Array.from(document.querySelectorAll('article[data-role="assistant"]'));
-	for (let index = articles.length - 1; index >= 0; index -= 1) {
-		const text = articles[index].innerText?.trim() ?? "";
+	const messages = Array.from(document.querySelectorAll('[data-testid="chat-message"][data-role="assistant"]'));
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const text = messages[index].innerText?.trim() ?? "";
 		if (text.length > 0) {
 			return text;
 		}
@@ -65,13 +65,13 @@ try {
 	}
 
 	await page.bringToFront();
-	await page.waitForSelector('input[placeholder="Message..."]', {
+	await page.waitForSelector('textarea[placeholder="Message..."]', {
 		timeout: 15000,
 	});
 
 	if (prompt && prompt.length > 0) {
 		const beforeCounts = await page.evaluate(toMessageCounts);
-		const input = page.locator('input[placeholder="Message..."]');
+		const input = page.locator('textarea[placeholder="Message..."]');
 		await input.fill(prompt);
 		await page.keyboard.press("Enter");
 
@@ -79,9 +79,9 @@ try {
 			await page
 				.waitForFunction(
 					(previousAssistantCount) => {
-						const articles = Array.from(document.querySelectorAll("article"));
-						const assistantCount = articles.filter(
-							(article) => article.dataset.role === "assistant",
+						const messages = Array.from(document.querySelectorAll('[data-testid="chat-message"]'));
+						const assistantCount = messages.filter(
+							(el) => el.dataset.role === "assistant",
 						).length;
 
 						return assistantCount > previousAssistantCount;

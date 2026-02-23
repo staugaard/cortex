@@ -34,8 +34,10 @@ These instructions apply to `/Users/staugaard/Code/cortex/apps/chat`.
 - `ANTHROPIC_API_KEY` must be present in the Bun process environment to stream real responses.
 
 ## UI Rules
-- Markdown rendering for assistant/user text uses `streamdown`.
+- Chat UI is built with [AI SDK Elements](https://elements.ai-sdk.dev/) — shadcn/ui-based components installed via CLI into `src/mainview/components/ai-elements/` and `src/mainview/components/ui/`.
+- Markdown rendering for assistant/user text uses `MessageResponse` from `@/components/ai-elements/message` (which uses streamdown internally).
 - Non-text message parts should be rendered explicitly (or clearly surfaced as typed placeholders) rather than silently ignored.
+- The `@/` path alias resolves to `src/mainview/` (configured in `vite.config.ts` and `tsconfig.json`).
 
 ## Commands
 Run inside this workspace:
