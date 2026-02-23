@@ -3,6 +3,9 @@
 ## Scope
 These instructions apply to `/Users/staugaard/Code/cortex/apps/chat`.
 
+## Start Here
+- For any UI verification task, follow `/Users/staugaard/Code/cortex/apps/chat/docs/automation-runbook.md`.
+
 ## Purpose
 `apps/chat` is the kitchen-sink host for validating shared chat-core behavior. It is allowed to include diagnostics and experimental flows needed to test `@cortex/chat-core`.
 
@@ -38,7 +41,20 @@ These instructions apply to `/Users/staugaard/Code/cortex/apps/chat`.
 Run inside this workspace:
 - `bun run dev:hmr`
 - `bun run dev`
+- `bun run dev:hmr:cef` (automation mode with CEF + CDP on port `9222`)
 - `bun run typecheck`
+- `bun run cdp:check`
+- `bun run cdp:targets`
+- `bun run cdp:screenshot`
+- `bun run cdp:smoke`
+- `bun run cdp:llm`
+
+## Automation Mode (For Coding Agents)
+- Preferred mode for deep UI automation is CEF with remote debugging.
+- Start with `bun run dev:hmr:cef`.
+- Verify the CDP endpoint with `bun run cdp:check`.
+- Capture a live proof artifact with `bun run cdp:screenshot` (or `bun run cdp:smoke` to submit a test prompt first).
+- Use CDP-aware tools to attach to the running embedded webview rather than opening `http://localhost:5173` in a standalone browser tab.
 
 ## Manual Validation (when transport/UI behavior changes)
 1. Happy path streaming: submit a prompt and verify incremental assistant output.

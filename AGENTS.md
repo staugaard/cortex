@@ -11,6 +11,7 @@ These instructions apply to the entire `/Users/staugaard/Code/cortex` monorepo u
 
 ## Monorepo Layout
 - `apps/chat`: kitchen-sink Electrobun app used to validate shared chat infrastructure.
+- `apps/chat/docs/automation-runbook.md`: required workflow for real in-app UI automation and LLM verification.
 - `packages/chat-core`: shared chat library (`@cortex/chat-core`) with runtime-specific subpaths.
 - `specs`: product and architecture specs; keep implementation aligned with `shared-chat-core-package.md`.
 
