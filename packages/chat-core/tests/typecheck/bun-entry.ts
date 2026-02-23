@@ -5,6 +5,7 @@ import {
 	handleCancelAgentRun,
 	handleStartAgentRun,
 } from "../../src/transport-bun";
+import { createSqliteChatRepository } from "../../src/persistence";
 
 const controller = createBunChatRunController<UIMessage, UIMessageChunk>({
 	createUIMessageStream: async () => {
@@ -36,3 +37,9 @@ void createAgentUIChunkStream({
 	messages: [],
 	abortSignal: new AbortController().signal,
 });
+
+const persistenceRepo = createSqliteChatRepository<UIMessage>({
+	dbPath: "/tmp/chat-core-typecheck.sqlite",
+});
+
+void persistenceRepo;

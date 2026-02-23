@@ -1,11 +1,9 @@
 export function Toolbar({
 	onReload,
-	onSave,
 	showDiagnostics,
 	onToggleDiagnostics,
 }: {
 	onReload: () => void;
-	onSave: () => void;
 	showDiagnostics: boolean;
 	onToggleDiagnostics: () => void;
 }) {
@@ -30,30 +28,6 @@ export function Toolbar({
 						/>
 						<path
 							d="M1.5 4v3.5H5"
-							stroke="currentColor"
-							strokeWidth="1.3"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-				</ToolbarButton>
-
-				<ToolbarButton onClick={onSave} title="Save now">
-					<svg
-						width="15"
-						height="15"
-						viewBox="0 0 15 15"
-						fill="none"
-					>
-						<path
-							d="M7.5 2.5v7M4.5 7l3 3 3-3"
-							stroke="currentColor"
-							strokeWidth="1.3"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-						<path
-							d="M2.5 11v1.5h10V11"
 							stroke="currentColor"
 							strokeWidth="1.3"
 							strokeLinecap="round"

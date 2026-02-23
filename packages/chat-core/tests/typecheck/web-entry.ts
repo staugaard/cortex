@@ -15,7 +15,7 @@ const schemaTypecheck: ChatElectrobunSchema<UIMessage, UIMessageChunk> = {
 			},
 			saveMessages: {
 				params: { sessionId: "s1", messages: [] },
-				response: { savedAt: 0 },
+				response: { sessionId: "s1", savedAt: 0 },
 			},
 		},
 		messages: {
@@ -33,6 +33,12 @@ const schemaTypecheck: ChatElectrobunSchema<UIMessage, UIMessageChunk> = {
 			},
 			agentDone: { chatId: "c1", runId: "r1", reason: "completed" },
 			agentError: { chatId: "c1", runId: "r1", error: "boom" },
+			conversationUpdated: {
+				sessionId: "s1",
+				title: "Title",
+				createdAt: 1,
+				updatedAt: 2,
+			},
 		},
 	},
 };

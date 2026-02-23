@@ -34,7 +34,7 @@ bun run build:prod
 
 When you run `bun run dev:hmr`:
 
-1. **Vite dev server** starts on `http://localhost:5173` with HMR enabled
+1. **Vite dev server** starts on `http://localhost:5174` with HMR enabled
 2. **Electrobun** starts and detects the running Vite server
 3. The app loads from the Vite dev server instead of bundled assets
 4. Changes to React components update instantly without full page reload
@@ -65,7 +65,7 @@ bun run cdp:llm
 ```
 
 Notes:
-- Opening `http://localhost:5173` in a standalone browser does not provide Electrobun-injected globals (`webviewId`, RPC socket port), so app RPC bootstrapping will fail there.
+- Opening `http://localhost:5174` in a standalone browser does not provide Electrobun-injected globals (`webviewId`, RPC socket port), so app RPC bootstrapping will fail there.
 - CDP mode is intended for debugging/automation; default native renderer mode remains available via `bun run dev` / `bun run dev:hmr`.
 
 ## Project Structure

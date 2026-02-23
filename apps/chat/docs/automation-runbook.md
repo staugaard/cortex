@@ -3,7 +3,10 @@
 This runbook is the source of truth for verifying the real Electrobun app UI during development.
 
 ## Goal
-Enable repeatable, tool-driven interaction with the **embedded desktop webview** (not just `http://localhost:5173` in a normal browser).
+Verify behavior in the **embedded desktop webview** (not just `http://localhost:5174` in a normal browser).
+Use either:
+- direct unscripted interaction in the live app window, or
+- CDP scripts when you want repeatability/artifacts.
 
 ## Why This Exists
 `src/mainview/chat-rpc.ts` initializes `Electroview`, which requires Electrobun-injected globals (`__electrobunWebviewId`, `__electrobunRpcSocketPort`).
@@ -35,48 +38,64 @@ bun install
 bun run dev:hmr
 ```
 
-- Automation/debug loop (CEF + CDP, required for scripted interaction):
+- Automation/debug loop (CEF + CDP, needed only when you want scripted interaction):
 
 ```bash
 bun run dev:hmr:cef
 ```
 
-## Mandatory Verification Workflow
-Run these from `/Users/staugaard/Code/cortex/apps/chat`.
+## Primary Verification Workflow (Manual, Unscripted)
+Run from `/Users/staugaard/Code/cortex/apps/chat`.
 
-1. Start the app in CDP mode:
+1. Start the app:
+
+```bash
+bun run dev:hmr
+```
+
+2. Interact directly with the app window and verify:
+- streaming output appears incrementally
+- cancel stops an in-flight response cleanly
+- session switching keeps messages isolated
+- no `Save Error` toast appears during normal sends/switches
+- reloading the same session restores persisted messages
+
+3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 
 ```bash
 bun run dev:hmr:cef
 ```
 
-2. Confirm CDP endpoint is alive:
+## Optional Scripted Verification (CDP)
+Run these from `/Users/staugaard/Code/cortex/apps/chat` when you need repeatable scripted checks.
+
+1. Confirm CDP endpoint is alive:
 
 ```bash
 bun run cdp:check
 bun run cdp:targets
 ```
 
-Expected: JSON output with a page target for `http://localhost:5173/`.
+Expected: JSON output with a page target for `http://localhost:5174/`.
 
-3. Capture current UI state from the live embedded app:
+2. Capture current UI state from the live embedded app:
 
 ```bash
 bun run cdp:screenshot
 ```
 
-4. Verify an actual LLM round-trip (prompt + assistant reply + screenshot):
+3. Verify an actual LLM round-trip (prompt + assistant reply + screenshot):
 
 ```bash
 bun run cdp:llm
 ```
 
 Expected command output includes:
-- `CDP attached to: http://localhost:5173/`
+- `CDP attached to: http://localhost:5174/`
 - `Last assistant message: ...`
 - `Screenshot saved: .../output/playwright/cdp-llm-response.png`
 
-If these are present, an actual assistant response was rendered in-app.
+If these are present, an actual assistant response was rendered in the embedded app.
 
 ## CDP Scripts
 - `bun run cdp:check`: prints CDP version endpoint.
@@ -102,7 +121,7 @@ Environment knobs for the script:
 
 - `cdp:check` fails or times out:
   - Confirm `bun run dev:hmr:cef` is still running.
-  - Check for port conflicts on `9222` and `5173`.
+  - Check for port conflicts on `9222` and `5174`.
 
 - `cdp:targets` shows no page target:
   - Wait a few seconds for app startup, then retry.
@@ -110,6 +129,10 @@ Environment knobs for the script:
 
 - Standalone browser page shows RPC websocket errors:
   - Expected outside Electrobun host. Use CDP workflow above.
+
+- App feels blocked or profile lock errors appear:
+  - Ensure only one `dev:hmr`/`dev:hmr:cef` session is running.
+  - Restart the app mode you are using.
 
 ## Artifacts
 Generated screenshots are written to:

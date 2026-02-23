@@ -19,7 +19,7 @@ function isPositiveFiniteNumber(value) {
 function getFirstPage(browser) {
 	for (const context of browser.contexts()) {
 		const pages = context.pages();
-		const appPage = pages.find((page) => page.url().includes("localhost:5173"));
+		const appPage = pages.find((page) => page.url().includes("localhost:5174"));
 		if (appPage) {
 			return appPage;
 		}

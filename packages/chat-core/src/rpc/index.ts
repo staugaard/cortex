@@ -31,6 +31,13 @@ export interface AgentErrorMessage {
 	error: string;
 }
 
+export interface ConversationUpdatedMessage {
+	sessionId: string;
+	title?: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 export interface ConversationSummary {
 	sessionId: string;
 	title?: string;
@@ -71,6 +78,7 @@ export interface SaveMessagesRequest<UI_MESSAGE> {
 }
 
 export interface SaveMessagesResponse {
+	sessionId: string;
 	savedAt: number;
 }
 
@@ -101,6 +109,7 @@ export type ChatElectrobunSchema<UI_MESSAGE, UI_CHUNK> = {
 			agentChunk: AgentChunkMessage<UI_CHUNK>;
 			agentDone: AgentDoneMessage;
 			agentError: AgentErrorMessage;
+			conversationUpdated: ConversationUpdatedMessage;
 		};
 	};
 };

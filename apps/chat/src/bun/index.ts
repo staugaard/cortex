@@ -1,7 +1,7 @@
 import { BrowserWindow, Updater, Utils } from "electrobun/bun";
 import { chatRpc } from "./chat-rpc";
 
-const DEV_SERVER_PORT = 5173;
+const DEV_SERVER_PORT = 5174;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
 
 async function getMainViewUrl(): Promise<string> {

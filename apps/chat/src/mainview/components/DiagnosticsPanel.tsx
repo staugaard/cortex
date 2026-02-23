@@ -1,12 +1,13 @@
 import type { ChatStatus } from "ai";
-import { DEFAULT_SESSION_ID } from "../chat-types";
 
 export function DiagnosticsPanel({
 	messageCount,
 	status,
+	sessionId,
 }: {
 	messageCount: number;
 	status: ChatStatus;
+	sessionId: string;
 }) {
 	const isStreaming = status === "streaming" || status === "submitted";
 
@@ -40,7 +41,7 @@ export function DiagnosticsPanel({
 				<div className="flex justify-between">
 					<dt className="text-muted-foreground">Session</dt>
 					<dd className="font-mono text-[11px]">
-						{DEFAULT_SESSION_ID}
+						{sessionId}
 					</dd>
 				</div>
 			</dl>

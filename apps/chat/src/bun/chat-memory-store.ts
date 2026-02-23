@@ -53,7 +53,7 @@ class ChatMemoryStore {
 			updatedAt: now,
 		});
 
-		return { savedAt: now };
+		return { sessionId: params.sessionId, savedAt: now };
 	}
 }
 

@@ -5,4 +5,8 @@ export type ChatUIMessage = UIMessage;
 export type ChatUIChunk = UIMessageChunk;
 export type AppChatSchema = ChatElectrobunSchema<ChatUIMessage, ChatUIChunk>;
 
-export const DEFAULT_SESSION_ID = "kitchen-sink";
+export const TEMP_SESSION_PREFIX = "tmp:";
+
+export function createTemporarySessionId(): string {
+	return `${TEMP_SESSION_PREFIX}${crypto.randomUUID()}`;
+}

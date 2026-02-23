@@ -1,5 +1,6 @@
 import { useChat } from "@ai-sdk/react";
-import { useCallback, useEffect, useState } from "react";
+import type { ConversationSummary } from "@cortex/chat-core/rpc";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Conversation,
 	ConversationContent,
@@ -13,23 +14,180 @@ import {
 } from "@/components/ai-elements/message";
 import {
 	PromptInput,
-	PromptInputTextarea,
 	PromptInputFooter,
-	PromptInputSubmit,
 	type PromptInputMessage,
+	PromptInputSubmit,
+	PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { MessageSquareIcon } from "lucide-react";
-import { Toolbar } from "@/components/Toolbar";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { ErrorToasts } from "@/components/ErrorToasts";
+import { SessionRail } from "@/components/SessionRail";
+import { Toolbar } from "@/components/Toolbar";
 import { chatRpc } from "./chat-rpc";
 import { chatTransport } from "./chat-transport";
-import { DEFAULT_SESSION_ID, type ChatUIMessage } from "./chat-types";
+import {
+	createTemporarySessionId,
+	TEMP_SESSION_PREFIX,
+	type ChatUIMessage,
+} from "./chat-types";
+
+function asErrorMessage(issue: unknown): string {
+	return issue instanceof Error ? issue.message : String(issue);
+}
+
+function sortSessionsByCreatedAt(
+	sessions: ConversationSummary[],
+): ConversationSummary[] {
+	return [...sessions].sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function upsertSession(
+	sessions: ConversationSummary[],
+	next: ConversationSummary,
+): ConversationSummary[] {
+	const withoutExisting = sessions.filter(
+		(session) => session.sessionId !== next.sessionId,
+	);
+	return sortSessionsByCreatedAt([...withoutExisting, next]);
+}
+
+function replaceSessionId(
+	sessions: ConversationSummary[],
+	fromSessionId: string,
+	toSessionId: string,
+): ConversationSummary[] {
+	return sessions.map((session) => {
+		if (session.sessionId !== fromSessionId) {
+			return session;
+		}
+		return {
+			...session,
+			sessionId: toSessionId,
+		};
+	});
+}
+
+function provisionalSession(sessionId: string): ConversationSummary {
+	const now = Date.now();
+	return {
+		sessionId,
+		title: "New Conversation",
+		createdAt: now,
+		updatedAt: now,
+	};
+}
 
 export default function App() {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showDiagnostics, setShowDiagnostics] = useState(true);
+	const [sessions, setSessions] = useState<ConversationSummary[]>([]);
+	const [activeSessionId, setActiveSessionId] = useState<string>(() =>
+		createTemporarySessionId(),
+	);
+	const [isSwitchingSession, setIsSwitchingSession] = useState(false);
+
+	const activeSessionIdRef = useRef(activeSessionId);
+	const messagesRef = useRef<ChatUIMessage[]>([]);
+	const pendingRemapHydrationRef = useRef<{
+		sessionId: string;
+		messages: ChatUIMessage[];
+	} | null>(null);
+
+	useEffect(() => {
+		activeSessionIdRef.current = activeSessionId;
+	}, [activeSessionId]);
+
+	useEffect(() => {
+		const handleConversationUpdated = (conversation: ConversationSummary) => {
+			setSessions((previousSessions) =>
+				upsertSession(previousSessions, conversation),
+			);
+		};
+
+		chatRpc.addMessageListener("conversationUpdated", handleConversationUpdated);
+		return () => {
+			chatRpc.removeMessageListener(
+				"conversationUpdated",
+				handleConversationUpdated,
+			);
+		};
+	}, []);
+
+	const persistSession = useCallback(
+		async (
+			sessionId: string,
+			nextMessages: ChatUIMessage[],
+			options?: { preserveViewOnRemap?: boolean },
+		): Promise<string> => {
+			if (
+				nextMessages.length === 0 &&
+				sessionId.startsWith(TEMP_SESSION_PREFIX)
+			) {
+				return sessionId;
+			}
+
+			const saveResult = await chatRpc.request.saveMessages({
+				sessionId,
+				messages: nextMessages,
+			});
+			const canonicalSessionId = saveResult.sessionId;
+			setSaveError(null);
+
+			setSessions((previousSessions) => {
+				const withCanonicalSession =
+					canonicalSessionId === sessionId
+						? previousSessions
+						: replaceSessionId(
+								previousSessions,
+								sessionId,
+								canonicalSessionId,
+							);
+				const existing = withCanonicalSession.find(
+					(session) => session.sessionId === canonicalSessionId,
+				);
+				return upsertSession(withCanonicalSession, {
+					sessionId: canonicalSessionId,
+					title: existing?.title,
+					createdAt: existing?.createdAt ?? saveResult.savedAt,
+					updatedAt: saveResult.savedAt,
+				});
+			});
+
+			if (
+				canonicalSessionId !== sessionId &&
+				activeSessionIdRef.current === sessionId
+			) {
+				if (options?.preserveViewOnRemap) {
+					pendingRemapHydrationRef.current = {
+						sessionId: canonicalSessionId,
+						messages: nextMessages,
+					};
+					activeSessionIdRef.current = canonicalSessionId;
+					setActiveSessionId(canonicalSessionId);
+				}
+			}
+
+			const savedConversationResult = await chatRpc.request.getConversation({
+				sessionId: canonicalSessionId,
+			});
+			const savedConversation = savedConversationResult.conversation;
+			if (savedConversation) {
+				setSessions((previousSessions) =>
+					upsertSession(previousSessions, {
+						sessionId: savedConversation.sessionId,
+						title: savedConversation.title,
+						createdAt: savedConversation.createdAt,
+						updatedAt: savedConversation.updatedAt,
+					}),
+				);
+			}
+
+			return canonicalSessionId;
+		},
+		[],
+	);
 
 	const {
 		messages,
@@ -40,70 +198,176 @@ export default function App() {
 		clearError,
 		stop,
 	} = useChat<ChatUIMessage>({
-		id: DEFAULT_SESSION_ID,
+		id: activeSessionId,
 		transport: chatTransport,
 		onFinish: ({ messages: finishedMessages }) => {
-			void chatRpc.request
-				.saveMessages({
-					sessionId: DEFAULT_SESSION_ID,
-					messages: finishedMessages,
-					title: "Kitchen Sink Session",
-				})
-				.then(() => setSaveError(null))
-				.catch((saveIssue: unknown) => {
-					setSaveError(
-						saveIssue instanceof Error
-							? saveIssue.message
-							: String(saveIssue),
-					);
-				});
+			const sessionIdAtFinish = activeSessionIdRef.current;
+			void persistSession(sessionIdAtFinish, finishedMessages, {
+				preserveViewOnRemap: true,
+			}).catch((saveIssue: unknown) => {
+				setSaveError(asErrorMessage(saveIssue));
+			});
 		},
 		onError: (issue) => {
 			setSaveError(issue.message);
 		},
 	});
 
-	const loadSession = useCallback(async () => {
-		try {
-			const result = await chatRpc.request.getConversation({
-				sessionId: DEFAULT_SESSION_ID,
-			});
-			setLoadError(null);
-			setMessages(result.conversation?.messages ?? []);
-		} catch (issue) {
-			setLoadError(issue instanceof Error ? issue.message : String(issue));
-		}
-	}, [setMessages]);
+	useEffect(() => {
+		messagesRef.current = messages;
+	}, [messages]);
 
 	useEffect(() => {
-		void loadSession();
-	}, [loadSession]);
-
-	const saveNow = async () => {
-		try {
-			await chatRpc.request.saveMessages({
-				sessionId: DEFAULT_SESSION_ID,
-				messages,
-				title: "Kitchen Sink Session",
-			});
-			setSaveError(null);
-		} catch (issue) {
-			setSaveError(issue instanceof Error ? issue.message : String(issue));
+		const pendingHydration = pendingRemapHydrationRef.current;
+		if (!pendingHydration || pendingHydration.sessionId !== activeSessionId) {
+			return;
 		}
-	};
+
+		setMessages(pendingHydration.messages);
+		messagesRef.current = pendingHydration.messages;
+		pendingRemapHydrationRef.current = null;
+	}, [activeSessionId, setMessages]);
+
+	const loadSessionMessages = useCallback(
+		async (sessionId: string): Promise<ChatUIMessage[]> => {
+			if (sessionId.startsWith(TEMP_SESSION_PREFIX)) {
+				return [];
+			}
+
+			const result = await chatRpc.request.getConversation({ sessionId });
+			const conversation = result.conversation;
+			if (conversation) {
+				setSessions((previousSessions) =>
+					upsertSession(previousSessions, {
+						sessionId: conversation.sessionId,
+						title: conversation.title,
+						createdAt: conversation.createdAt,
+						updatedAt: conversation.updatedAt,
+					}),
+				);
+			}
+			return conversation?.messages ?? [];
+		},
+		[],
+	);
+
+	const loadSessionList = useCallback(async () => {
+		const result = await chatRpc.request.getConversationList({});
+		return sortSessionsByCreatedAt(result.conversations);
+	}, []);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		void (async () => {
+			try {
+				const availableSessions = await loadSessionList();
+				if (isCancelled) {
+					return;
+				}
+
+				setLoadError(null);
+				if (availableSessions.length === 0) {
+					const tempSessionId = createTemporarySessionId();
+					activeSessionIdRef.current = tempSessionId;
+					setActiveSessionId(tempSessionId);
+					setSessions([provisionalSession(tempSessionId)]);
+					setMessages([]);
+					return;
+				}
+
+				const firstSessionId = availableSessions[0]!.sessionId;
+				activeSessionIdRef.current = firstSessionId;
+				setActiveSessionId(firstSessionId);
+				setSessions(availableSessions);
+				setMessages(await loadSessionMessages(firstSessionId));
+			} catch (issue) {
+				if (!isCancelled) {
+					setLoadError(asErrorMessage(issue));
+				}
+			}
+		})();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [loadSessionList, loadSessionMessages, setMessages]);
+
+	const reloadActiveSession = useCallback(async () => {
+		try {
+			setMessages(await loadSessionMessages(activeSessionIdRef.current));
+			setLoadError(null);
+		} catch (issue) {
+			setLoadError(asErrorMessage(issue));
+		}
+	}, [loadSessionMessages, setMessages]);
+
+	const selectSession = useCallback(
+		async (nextSessionId: string) => {
+			if (nextSessionId === activeSessionIdRef.current) {
+				return;
+			}
+
+			setIsSwitchingSession(true);
+			try {
+				stop();
+				const currentSessionId = activeSessionIdRef.current;
+				const canonicalCurrentSessionId = await persistSession(
+					currentSessionId,
+					messagesRef.current,
+				);
+
+				const resolvedNextSessionId =
+					nextSessionId === currentSessionId
+						? canonicalCurrentSessionId
+						: nextSessionId;
+
+				activeSessionIdRef.current = resolvedNextSessionId;
+				setActiveSessionId(resolvedNextSessionId);
+				setMessages(await loadSessionMessages(resolvedNextSessionId));
+				setLoadError(null);
+			} catch (issue) {
+				setLoadError(asErrorMessage(issue));
+			} finally {
+				setIsSwitchingSession(false);
+			}
+		},
+		[loadSessionMessages, persistSession, setMessages, stop],
+	);
+
+	const createNewSession = useCallback(async () => {
+		setIsSwitchingSession(true);
+		try {
+			stop();
+			await persistSession(activeSessionIdRef.current, messagesRef.current);
+			const newSessionId = createTemporarySessionId();
+			activeSessionIdRef.current = newSessionId;
+			setActiveSessionId(newSessionId);
+			setSessions((previousSessions) =>
+				upsertSession(previousSessions, provisionalSession(newSessionId)),
+			);
+			setMessages([]);
+			setLoadError(null);
+		} catch (issue) {
+			setLoadError(asErrorMessage(issue));
+		} finally {
+			setIsSwitchingSession(false);
+		}
+	}, [persistSession, setMessages, stop]);
 
 	const handleSubmit = (message: PromptInputMessage) => {
-		if (!message.text.trim()) return;
+		if (!message.text.trim()) {
+			return;
+		}
 		void sendMessage({ text: message.text });
 	};
 
 	return (
 		<div className="flex h-screen flex-col bg-background text-foreground">
 			<Toolbar
-				onReload={() => void loadSession()}
-				onSave={() => void saveNow()}
+				onReload={() => void reloadActiveSession()}
 				showDiagnostics={showDiagnostics}
-				onToggleDiagnostics={() => setShowDiagnostics((s) => !s)}
+				onToggleDiagnostics={() => setShowDiagnostics((state) => !state)}
 			/>
 
 			<ErrorToasts
@@ -116,6 +380,14 @@ export default function App() {
 			/>
 
 			<div className="flex flex-1 overflow-hidden">
+				<SessionRail
+					sessions={sessions}
+					activeSessionId={activeSessionId}
+					onNewSession={() => void createNewSession()}
+					onSelectSession={(sessionId) => void selectSession(sessionId)}
+					disabled={isSwitchingSession}
+				/>
+
 				<div className="flex flex-1 flex-col overflow-hidden">
 					<Conversation>
 						<ConversationContent>
@@ -123,9 +395,7 @@ export default function App() {
 								<ConversationEmptyState
 									title="New Conversation"
 									description="Send a message to get started"
-									icon={
-										<MessageSquareIcon className="size-8" />
-									}
+									icon={<MessageSquareIcon className="size-8" />}
 								/>
 							) : (
 								messages.map((message) => (
@@ -143,10 +413,8 @@ export default function App() {
 															<MessageResponse
 																key={`${message.id}-${i}`}
 																isAnimating={
-																	(status ===
-																		"streaming" ||
-																		status ===
-																			"submitted") &&
+																	(status === "streaming" ||
+																		status === "submitted") &&
 																	message.role ===
 																		"assistant"
 																}
@@ -181,10 +449,7 @@ export default function App() {
 							<PromptInputTextarea placeholder="Message..." />
 							<PromptInputFooter>
 								<span />
-								<PromptInputSubmit
-									status={status}
-									onStop={stop}
-								/>
+								<PromptInputSubmit status={status} onStop={stop} />
 							</PromptInputFooter>
 						</PromptInput>
 					</div>
@@ -194,6 +459,7 @@ export default function App() {
 					<DiagnosticsPanel
 						messageCount={messages.length}
 						status={status}
+						sessionId={activeSessionId}
 					/>
 				)}
 			</div>
