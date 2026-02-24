@@ -1,11 +1,44 @@
 # @cortex/chat-core
 
-Phase 1 foundation package for shared chat infrastructure in the Cortex monorepo.
+Shared chat infrastructure for Cortex desktop apps.
 
-This package currently provides:
+## Subpath Exports
 
-- stable subpath exports for future shared modules
-- runtime-boundary compile checks for webview-safe vs Bun-only modules
-- placeholder contracts that keep import surfaces stable while implementation is added in later phases
+- `@cortex/chat-core/rpc`
+- `@cortex/chat-core/transport-web`
+- `@cortex/chat-core/transport-bun`
+- `@cortex/chat-core/persistence`
+- `@cortex/chat-core/agents`
 
-Phase 1 intentionally does not include transport, persistence, or agent runtime behavior.
+## Runtime Boundary
+
+- `transport-web` is webview-safe.
+- `transport-bun`, `persistence`, and `agents` are Bun/runtime-side.
+- `rpc` is runtime-agnostic.
+
+## Agents Utilities
+
+`@cortex/chat-core/agents` provides reusable Bun-side helpers for manager/subagent orchestration:
+
+- `runSubagentUIMessageStream(...)`
+- `composeAgentLoopHooks(...)`
+- `createAgentLoopInstrumentation(...)`
+- `createAgentActivityRecorder(...)`
+
+These utilities are intentionally app-agnostic. Product prompts and domain-specific tools stay in each app.
+
+## Validation
+
+From repo root:
+
+```bash
+bun run typecheck:chat-core
+bun run typecheck:chat
+bun run typecheck:phase1
+```
+
+When modifying `packages/chat-core`:
+
+```bash
+bun run --cwd packages/chat-core test
+```

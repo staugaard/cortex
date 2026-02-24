@@ -30,6 +30,8 @@ export interface BunChatRunController<UI_MESSAGE> {
 
 export interface CreateBunChatRunControllerOptions<UI_MESSAGE, UI_CHUNK> {
 	createUIMessageStream: (input: {
+		chatId: ChatId;
+		runId: RunId;
 		messages: UI_MESSAGE[];
 		abortSignal: AbortSignal;
 	}) => Promise<ReadableStream<UI_CHUNK> | AsyncIterable<UI_CHUNK>>;
@@ -95,6 +97,8 @@ export function createBunChatRunController<UI_MESSAGE, UI_CHUNK>(
 		void (async () => {
 			try {
 				const stream = await options.createUIMessageStream({
+					chatId: message.chatId,
+					runId: message.runId,
 					messages: message.messages,
 					abortSignal: activeRun.abortController.signal,
 				});

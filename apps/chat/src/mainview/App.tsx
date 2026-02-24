@@ -19,6 +19,7 @@ import {
 	PromptInputSubmit,
 	PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
+import { AgentActivityItem } from "@/components/AgentActivityItem";
 import { MessageSquareIcon } from "lucide-react";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { ErrorToasts } from "@/components/ErrorToasts";
@@ -31,6 +32,36 @@ import {
 	TEMP_SESSION_PREFIX,
 	type ChatUIMessage,
 } from "./chat-types";
+
+type ChatMessagePart = ChatUIMessage["parts"][number];
+
+function isToolPart(part: ChatMessagePart): boolean {
+	return part.type === "dynamic-tool" || part.type.startsWith("tool-");
+}
+
+function toolNameFromPart(part: ChatMessagePart): string {
+	if (part.type === "dynamic-tool") {
+		return part.toolName;
+	}
+	if (part.type.startsWith("tool-")) {
+		return part.type.slice("tool-".length);
+	}
+	return "tool";
+}
+
+function formatPartPayload(payload: unknown): string {
+	if (payload == null) {
+		return "";
+	}
+	if (typeof payload === "string") {
+		return payload;
+	}
+	try {
+		return JSON.stringify(payload, null, 2);
+	} catch {
+		return String(payload);
+	}
+}
 
 function asErrorMessage(issue: unknown): string {
 	return issue instanceof Error ? issue.message : String(issue);
@@ -422,7 +453,66 @@ export default function App() {
 																{part.text}
 															</MessageResponse>
 														);
-													default:
+													case "reasoning":
+														return (
+															<div
+																key={`${message.id}-${i}-reasoning`}
+																className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground"
+															>
+																<div className="mb-1 font-medium uppercase tracking-wide">
+																	Reasoning
+																</div>
+																{part.text}
+															</div>
+														);
+													case "data-agentActivity":
+														return (
+															<AgentActivityItem
+																key={`${message.id}-${part.type}-${part.data.activityId}`}
+																activity={part.data}
+															/>
+														);
+												default:
+													if (isToolPart(part)) {
+														const dynamicPart = part as {
+															state?: string;
+															input?: unknown;
+															output?: unknown;
+																errorText?: string;
+																toolCallId?: string;
+															};
+															return (
+																<div
+																	key={`${message.id}-${part.type}-${i}`}
+																	className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs"
+																>
+																	<div className="font-medium">
+																		Tool: {toolNameFromPart(part)} ·{" "}
+																		{dynamicPart.state ?? "unknown"}
+																	</div>
+																	{dynamicPart.toolCallId ? (
+																		<div className="text-[11px] text-muted-foreground">
+																			Call: {dynamicPart.toolCallId}
+																		</div>
+																	) : null}
+																	{dynamicPart.errorText ? (
+																		<pre className="mt-1 overflow-x-auto rounded-sm bg-red-50 px-2 py-1 text-[11px] text-red-700">
+																			{dynamicPart.errorText}
+																		</pre>
+																	) : null}
+																	{dynamicPart.input != null ? (
+																		<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
+																			input: {formatPartPayload(dynamicPart.input)}
+																		</pre>
+																	) : null}
+																	{dynamicPart.output != null ? (
+																		<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
+																			output: {formatPartPayload(dynamicPart.output)}
+																		</pre>
+																	) : null}
+																</div>
+															);
+														}
 														return (
 															<span
 																key={`${message.id}-${part.type}-${i}`}

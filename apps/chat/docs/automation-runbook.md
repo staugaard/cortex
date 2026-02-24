@@ -60,6 +60,7 @@ bun run dev:hmr
 - no `Save Error` toast appears during normal sends/switches
 - reloading the same session restores persisted messages
 - generated session title upgrades from fallback to a concise final title
+- assistant messages include an `Agent activity` item that is collapsed by default
 
 ### Safe Interaction Sequencing (Important)
 Use this order to avoid false negatives caused by lifecycle races:
@@ -85,6 +86,18 @@ Use this order to avoid false negatives caused by lifecycle races:
 
 5. Persistence validation:
 - switch away and back, then restart app, and confirm the same session reloads with messages and upgraded title
+- confirm `Agent activity` reloads with the session and is collapsed initially
+
+### Agent Routing Validation
+
+Validate natural manager decisioning:
+
+1. Normal non-math path:
+- send a normal non-math prompt and verify manager stays direct
+
+2. Math-specialist path:
+- send a math prompt (for example `Solve 17*(24-9)`)
+- verify `Agent activity` expands to show math-expert subagent events
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 

@@ -6,6 +6,13 @@ import {
 	handleStartAgentRun,
 } from "../../src/transport-bun";
 import { createSqliteChatRepository } from "../../src/persistence";
+import { ToolLoopAgent } from "ai";
+import {
+	createAgentActivityRecorder,
+	createAgentLoopInstrumentation,
+	composeAgentLoopHooks,
+	runSubagentUIMessageStream,
+} from "../../src/agents";
 
 const controller = createBunChatRunController<UIMessage, UIMessageChunk>({
 	createUIMessageStream: async () => {
@@ -36,6 +43,27 @@ void createAgentUIChunkStream({
 	agent: {} as Agent,
 	messages: [],
 	abortSignal: new AbortController().signal,
+});
+
+const instrumentation = createAgentLoopInstrumentation();
+const recorder = createAgentActivityRecorder({
+	activityId: "activity",
+});
+const composedHooks = composeAgentLoopHooks(
+	instrumentation.hooks,
+	recorder.createHooks("agent"),
+);
+void composedHooks;
+
+const dummyAgent = new ToolLoopAgent({
+	model: {} as never,
+	instructions: "Typecheck only",
+});
+
+void runSubagentUIMessageStream({
+	agent: dummyAgent,
+	uiMessages: [],
+	hooks: recorder.createHooks("subagent"),
 });
 
 const persistenceRepo = createSqliteChatRepository<UIMessage>({

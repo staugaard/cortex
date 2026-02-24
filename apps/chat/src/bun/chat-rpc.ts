@@ -1,22 +1,21 @@
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { UIMessage, UIMessageChunk } from "ai";
+import { createUIMessageStream } from "ai";
 import { BrowserView, Utils } from "electrobun/bun";
 import {
-	createAgentUIChunkStream,
 	createBunChatRunController,
 	handleCancelAgentRun,
 	handleStartAgentRun,
 } from "@cortex/chat-core/transport-bun";
 import { createSqliteChatRepository } from "@cortex/chat-core/persistence";
-import type { AppChatSchema } from "../mainview/chat-types";
-import { chatAgent } from "./chat-agent";
+import type { AppChatSchema, ChatUIChunk, ChatUIMessage } from "../mainview/chat-types";
+import { createChatRunUIChunkStream } from "./chat-agent";
 import { generateConversationTitle } from "./chat-title-generator";
 
 const chatDatabasePath = join(Utils.paths.userData, "chat.sqlite");
 mkdirSync(dirname(chatDatabasePath), { recursive: true });
 
-const chatRepository = createSqliteChatRepository<UIMessage>({
+const chatRepository = createSqliteChatRepository<ChatUIMessage>({
 	dbPath: chatDatabasePath,
 	generateTitle: generateConversationTitle,
 	generateTitleTimeoutMs: 15_000,
@@ -25,13 +24,27 @@ const chatRepository = createSqliteChatRepository<UIMessage>({
 	},
 });
 
-const runController = createBunChatRunController<UIMessage, UIMessageChunk>({
-	createUIMessageStream: ({ messages, abortSignal }) =>
-		createAgentUIChunkStream({
-			agent: chatAgent,
-			messages,
-			abortSignal,
-		}),
+const runController = createBunChatRunController<ChatUIMessage, ChatUIChunk>({
+	createUIMessageStream: async ({ chatId, runId, messages, abortSignal }) =>
+		createUIMessageStream<ChatUIMessage>({
+			execute: async ({ writer }) => {
+				const stream = await createChatRunUIChunkStream({
+					chatId,
+					runId,
+					messages,
+					abortSignal,
+					onActivityUpdate: (activity) => {
+						writer.write({
+							type: "data-agentActivity",
+							id: activity.activityId,
+							data: activity,
+						});
+					},
+				});
+				writer.merge(stream);
+			},
+			originalMessages: messages,
+		}) as ReadableStream<ChatUIChunk>,
 	sendChunk: (payload) => chatRpc.send.agentChunk(payload),
 	sendDone: (payload) => chatRpc.send.agentDone(payload),
 	sendError: (payload) => chatRpc.send.agentError(payload),
