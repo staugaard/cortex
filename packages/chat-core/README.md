@@ -20,12 +20,20 @@ Shared chat infrastructure for Cortex desktop apps.
 
 `@cortex/chat-core/agents` provides reusable Bun-side helpers for manager/subagent orchestration:
 
+- `createAgentLoopUIChunkStream(...)`
+- `normalizeAgentUIChunkStream(...)`
+- `sanitizeUIMessagesForModelInput(...)`
 - `runSubagentUIMessageStream(...)`
 - `composeAgentLoopHooks(...)`
 - `createAgentLoopInstrumentation(...)`
 - `createAgentActivityRecorder(...)`
 
-These utilities are intentionally app-agnostic. Product prompts and domain-specific tools stay in each app.
+Normalization policy defaults:
+- `hideStepLifecycleChunks: true`
+- `hiddenToolNames: []`
+- `sanitizeUIMessagesForModelInput(...)` drops `data-*` parts but keeps text/reasoning/file/source and tool parts so approval/tool flows can continue.
+
+These utilities are intentionally app-agnostic. Product prompts, tool visibility policy, and domain-specific tools stay in each app.
 
 ## Validation
 

@@ -22,6 +22,235 @@ import type {
 const assertBunRuntime: RequireBunRuntime<BunRuntimeFlag> = true;
 void assertBunRuntime;
 
+const MODEL_SAFE_PART_TYPES = new Set([
+	"text",
+	"reasoning",
+	"file",
+	"source-url",
+	"source-document",
+]);
+const MODEL_CONTINUATION_TOOL_STATES = new Set([
+	"approval-requested",
+	"approval-responded",
+]);
+
+const STEP_LIFECYCLE_CHUNK_TYPES = new Set([
+	"start-step",
+	"finish-step",
+	"step-start",
+	"step-finish",
+]);
+
+function shouldKeepPartForModelInput(part: UIMessage["parts"][number]): boolean {
+	if (MODEL_SAFE_PART_TYPES.has(part.type)) {
+		return true;
+	}
+
+	if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
+		const state = asString((part as { state?: unknown }).state);
+		// Keep only continuation-relevant tool states to avoid replaying terminal
+		// tool_use/tool_result structures that can violate provider sequencing.
+		return state ? MODEL_CONTINUATION_TOOL_STATES.has(state) : false;
+	}
+
+	return false;
+}
+
+function asString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+export function sanitizeUIMessagesForModelInput<UI_MESSAGE extends UIMessage>(
+	messages: UI_MESSAGE[],
+): UI_MESSAGE[] {
+	const sanitized: UI_MESSAGE[] = [];
+
+	for (const message of messages) {
+		const nextParts = message.parts
+			.filter((part) => shouldKeepPartForModelInput(part))
+			.map((part) => ({ ...part }));
+
+		if (nextParts.length === 0) {
+			continue;
+		}
+
+		sanitized.push({
+			...message,
+			parts: nextParts,
+		});
+	}
+
+	return sanitized;
+}
+
+export interface CreateAgentLoopUIChunkStreamOptions<
+	UI_MESSAGE extends UIMessage,
+	CALL_OPTIONS,
+	TOOLS extends ToolSet,
+> {
+	agent: Agent<CALL_OPTIONS, TOOLS, any>;
+	uiMessages: UI_MESSAGE[];
+	options?: CALL_OPTIONS;
+	abortSignal?: AbortSignal;
+	timeout?: TimeoutConfiguration;
+	hooks?: AgentLoopHooks<TOOLS>;
+	sanitizeMessagesForModel?: boolean;
+}
+
+export interface CreateAgentLoopUIChunkStreamResult<
+	UI_MESSAGE extends UIMessage,
+	UI_CHUNK extends UIMessageChunk,
+> {
+	stream: ReadableStream<UI_CHUNK>;
+	validatedMessages: UI_MESSAGE[];
+}
+
+export async function createAgentLoopUIChunkStream<
+	UI_MESSAGE extends UIMessage,
+	CALL_OPTIONS = never,
+	TOOLS extends ToolSet = ToolSet,
+	UI_CHUNK extends UIMessageChunk = UIMessageChunk,
+>(
+	input: CreateAgentLoopUIChunkStreamOptions<UI_MESSAGE, CALL_OPTIONS, TOOLS>,
+): Promise<CreateAgentLoopUIChunkStreamResult<UI_MESSAGE, UI_CHUNK>> {
+	const messagesForModel =
+		input.sanitizeMessagesForModel === false
+			? input.uiMessages
+			: sanitizeUIMessagesForModelInput(input.uiMessages);
+
+	const validatedMessages = (await validateUIMessages({
+		messages: messagesForModel,
+		tools: input.agent.tools,
+	})) as UI_MESSAGE[];
+
+	const modelMessages = await convertToModelMessages(validatedMessages, {
+		tools: input.agent.tools,
+	});
+
+	const streamParams: Parameters<typeof input.agent.stream>[0] = {
+		prompt: modelMessages,
+		abortSignal: input.abortSignal,
+		timeout: input.timeout,
+		experimental_onStart: input.hooks?.experimental_onStart,
+		experimental_onStepStart: input.hooks?.experimental_onStepStart,
+		experimental_onToolCallStart: input.hooks?.experimental_onToolCallStart,
+		experimental_onToolCallFinish: input.hooks?.experimental_onToolCallFinish,
+		onStepFinish: input.hooks?.onStepFinish,
+		onFinish: input.hooks?.onFinish,
+	};
+
+	if (input.options !== undefined) {
+		(streamParams as { options?: CALL_OPTIONS }).options = input.options;
+	}
+
+	const streamResult = await input.agent.stream(streamParams);
+
+	return {
+		stream: streamResult.toUIMessageStream({
+			originalMessages: validatedMessages,
+		}) as unknown as ReadableStream<UI_CHUNK>,
+		validatedMessages,
+	};
+}
+
+export interface NormalizeAgentUIChunkStreamOptions {
+	hideStepLifecycleChunks?: boolean;
+	hiddenToolNames?: Iterable<string>;
+}
+
+function shouldSuppressChunk(
+	chunk: UIMessageChunk,
+	options: { hideStepLifecycleChunks: boolean; hiddenToolNames: Set<string> },
+	hiddenToolCallIds: Set<string>,
+): boolean {
+	const chunkType = asString((chunk as { type?: unknown }).type);
+	if (!chunkType) {
+		return false;
+	}
+
+	if (
+		options.hideStepLifecycleChunks &&
+		STEP_LIFECYCLE_CHUNK_TYPES.has(chunkType)
+	) {
+		return true;
+	}
+
+	switch (chunkType) {
+		case "tool-input-start":
+		case "tool-input-available":
+		case "tool-input-error": {
+			const toolName = asString((chunk as { toolName?: unknown }).toolName);
+			const toolCallId = asString(
+				(chunk as { toolCallId?: unknown }).toolCallId,
+			);
+			if (toolName && options.hiddenToolNames.has(toolName)) {
+				if (toolCallId) {
+					hiddenToolCallIds.add(toolCallId);
+				}
+				return true;
+			}
+			return false;
+		}
+		case "tool-input-delta":
+		case "tool-output-available":
+		case "tool-output-error":
+		case "tool-output-denied":
+		case "tool-approval-request": {
+			const toolCallId = asString(
+				(chunk as { toolCallId?: unknown }).toolCallId,
+			);
+			return toolCallId ? hiddenToolCallIds.has(toolCallId) : false;
+		}
+		default:
+			return false;
+	}
+}
+
+export function normalizeAgentUIChunkStream<UI_CHUNK extends UIMessageChunk>(
+	stream: ReadableStream<UI_CHUNK>,
+	options: NormalizeAgentUIChunkStreamOptions = {},
+): ReadableStream<UI_CHUNK> {
+	const normalizedOptions: {
+		hideStepLifecycleChunks: boolean;
+		hiddenToolNames: Set<string>;
+	} = {
+		hideStepLifecycleChunks: options.hideStepLifecycleChunks ?? true,
+		hiddenToolNames: new Set(options.hiddenToolNames ?? []),
+	};
+	const hiddenToolCallIds = new Set<string>();
+	const reader = stream.getReader();
+
+	return new ReadableStream<UI_CHUNK>({
+		async pull(controller) {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					reader.releaseLock();
+					controller.close();
+					return;
+				}
+				if (!value) {
+					continue;
+				}
+				if (
+					shouldSuppressChunk(value, normalizedOptions, hiddenToolCallIds)
+				) {
+					continue;
+				}
+				controller.enqueue(value);
+				return;
+			}
+		},
+		async cancel(reason) {
+			try {
+				await reader.cancel(reason);
+			} finally {
+				reader.releaseLock();
+			}
+		},
+	});
+}
+
 type StartEvent<TOOLS extends ToolSet> = Parameters<
 	NonNullable<ToolLoopAgentOnStartCallback<TOOLS>>
 >[0];
@@ -545,36 +774,15 @@ export async function runSubagentUIMessageStream<
 >(
 	input: RunSubagentUIMessageStreamOptions<UI_MESSAGE, CALL_OPTIONS, TOOLS>,
 ): Promise<RunSubagentUIMessageStreamResult<UI_MESSAGE>> {
-	const validatedMessages = (await validateUIMessages({
-		messages: input.uiMessages,
-		tools: input.agent.tools,
-	})) as UI_MESSAGE[];
-
-	const modelMessages = await convertToModelMessages(validatedMessages, {
-		tools: input.agent.tools,
-	});
-
-	const streamParams: Parameters<typeof input.agent.stream>[0] = {
-		prompt: modelMessages,
-		abortSignal: input.abortSignal,
-		timeout: input.timeout,
-		experimental_onStart: input.hooks?.experimental_onStart,
-		experimental_onStepStart: input.hooks?.experimental_onStepStart,
-		experimental_onToolCallStart: input.hooks?.experimental_onToolCallStart,
-		experimental_onToolCallFinish: input.hooks?.experimental_onToolCallFinish,
-		onStepFinish: input.hooks?.onStepFinish,
-		onFinish: input.hooks?.onFinish,
-	};
-
-	if (input.options !== undefined) {
-		(streamParams as { options?: CALL_OPTIONS }).options = input.options;
-	}
-
-	const streamResult = await input.agent.stream(streamParams);
-
-	const uiChunkStream = streamResult.toUIMessageStream({
-		originalMessages: validatedMessages,
-	});
+	const { stream: uiChunkStream, validatedMessages } =
+		await createAgentLoopUIChunkStream<UI_MESSAGE, CALL_OPTIONS, TOOLS>({
+			agent: input.agent,
+			uiMessages: input.uiMessages,
+			options: input.options,
+			abortSignal: input.abortSignal,
+			timeout: input.timeout,
+			hooks: input.hooks,
+		});
 
 	const seedMessage = [...validatedMessages]
 		.reverse()

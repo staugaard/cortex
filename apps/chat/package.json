@@ -15,6 +15,7 @@
 		"cdp:screenshot": "node scripts/cdp-chat-smoke.mjs",
 		"cdp:smoke": "CDP_PROMPT=\"Tooling smoke prompt\" node scripts/cdp-chat-smoke.mjs",
 		"cdp:llm": "CDP_PROMPT=\"Give a two-bullet markdown response confirming you are live.\" CDP_ASSISTANT_WAIT_MS=30000 CDP_WAIT_MS=2000 CDP_SCREENSHOT=output/playwright/cdp-llm-response.png node scripts/cdp-chat-smoke.mjs",
+		"cdp:tools": "node scripts/cdp-tool-matrix.mjs",
 		"start": "bun run dev",
 		"typecheck": "tsc -p tsconfig.json --pretty false"
 	},

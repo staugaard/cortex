@@ -9,9 +9,12 @@ import { createSqliteChatRepository } from "../../src/persistence";
 import { ToolLoopAgent } from "ai";
 import {
 	createAgentActivityRecorder,
+	createAgentLoopUIChunkStream,
 	createAgentLoopInstrumentation,
 	composeAgentLoopHooks,
+	normalizeAgentUIChunkStream,
 	runSubagentUIMessageStream,
+	sanitizeUIMessagesForModelInput,
 } from "../../src/agents";
 
 const controller = createBunChatRunController<UIMessage, UIMessageChunk>({
@@ -65,6 +68,27 @@ void runSubagentUIMessageStream({
 	uiMessages: [],
 	hooks: recorder.createHooks("subagent"),
 });
+
+void createAgentLoopUIChunkStream({
+	agent: dummyAgent,
+	uiMessages: [],
+	hooks: recorder.createHooks("manager"),
+});
+
+void normalizeAgentUIChunkStream(
+	new ReadableStream<UIMessageChunk>({
+		start: (streamController) => {
+			streamController.enqueue({ type: "text-start", id: "t1" });
+			streamController.close();
+		},
+	}),
+	{
+		hiddenToolNames: ["ask_math_expert"],
+		hideStepLifecycleChunks: true,
+	},
+);
+
+void sanitizeUIMessagesForModelInput<UIMessage>([]);
 
 const persistenceRepo = createSqliteChatRepository<UIMessage>({
 	dbPath: "/tmp/chat-core-typecheck.sqlite",

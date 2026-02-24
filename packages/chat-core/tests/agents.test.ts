@@ -3,8 +3,11 @@ import type { Agent, Output, ToolSet, UIMessage, UIMessageChunk } from "ai";
 import {
 	composeAgentLoopHooks,
 	createAgentActivityRecorder,
+	createAgentLoopUIChunkStream,
 	createAgentLoopInstrumentation,
+	normalizeAgentUIChunkStream,
 	runSubagentUIMessageStream,
+	sanitizeUIMessagesForModelInput,
 } from "../src/agents";
 
 function createUserMessage(text: string): UIMessage {
@@ -107,6 +110,42 @@ function extractText(message: UIMessage | undefined): string {
 		.trim();
 }
 
+function streamFromChunks(
+	chunks: UIMessageChunk[],
+): ReadableStream<UIMessageChunk> {
+	return new ReadableStream<UIMessageChunk>({
+		start(controller) {
+			for (const chunk of chunks) {
+				controller.enqueue(chunk);
+			}
+			controller.close();
+		},
+	});
+}
+
+async function readChunks(
+	stream: ReadableStream<UIMessageChunk>,
+): Promise<UIMessageChunk[]> {
+	const reader = stream.getReader();
+	const chunks: UIMessageChunk[] = [];
+
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			if (value) {
+				chunks.push(value);
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+
+	return chunks;
+}
+
 describe("runSubagentUIMessageStream", () => {
 	test("captures partial updates and final assistant message", async () => {
 		const partials: UIMessage[] = [];
@@ -146,6 +185,203 @@ describe("runSubagentUIMessageStream", () => {
 			onStepFinish: true,
 			onFinish: true,
 		});
+	});
+});
+
+describe("createAgentLoopUIChunkStream", () => {
+	test("sanitizes unsupported UI parts before validation", async () => {
+		const capturedMessages: unknown[] = [];
+		const streamAgent: Agent<never, ToolSet, Output> = {
+			version: "agent-v1",
+			id: "capture-agent",
+			tools: {},
+			generate: async () => {
+				throw new Error("not used");
+			},
+			stream: async (options) => {
+				capturedMessages.push(options.prompt);
+				return {
+					toUIMessageStream: () => createAssistantChunkStream("ok"),
+				} as never;
+			},
+		};
+
+		const result = await createAgentLoopUIChunkStream({
+			agent: streamAgent,
+			uiMessages: [
+				{
+					id: "u1",
+					role: "user",
+					parts: [
+						{ type: "text", text: "hello" },
+						{
+							type: "data-agentActivity",
+							id: "activity-1",
+							data: { status: "running" },
+						} as never,
+					],
+				},
+			],
+		});
+
+		expect(result.validatedMessages).toHaveLength(1);
+		expect(result.validatedMessages[0]?.parts).toEqual([
+			{ type: "text", text: "hello" },
+		]);
+		expect(capturedMessages).toHaveLength(1);
+	});
+});
+
+describe("sanitizeUIMessagesForModelInput", () => {
+	test("keeps model-safe parts and approval continuation tool parts only", () => {
+		const sanitized = sanitizeUIMessagesForModelInput([
+			{
+				id: "m1",
+				role: "assistant",
+				parts: [
+					{ type: "text", text: "safe" },
+					{
+						type: "tool-get_local_time",
+						toolCallId: "tool-1",
+						state: "output-available",
+						input: { timezone: "Europe/Copenhagen" },
+						output: { timezone: "Europe/Copenhagen", localTime: "10:00:00" },
+					} as never,
+					{
+						type: "tool-sensitive_action_preview",
+						toolCallId: "tool-2",
+						state: "approval-requested",
+						input: { action: "delete", target: "prod invoices" },
+					} as never,
+					{
+						type: "tool-sensitive_action_preview",
+						toolCallId: "tool-3",
+						state: "approval-responded",
+						input: { action: "delete", target: "prod invoices" },
+						approval: {
+							id: "approval-3",
+							approved: false,
+							reason: "Not now",
+						},
+					} as never,
+					{
+						type: "data-agentActivity",
+						id: "activity",
+						data: { status: "running" },
+					} as never,
+					{ type: "reasoning", text: "thinking" } as never,
+				],
+			},
+			{
+				id: "m2",
+				role: "assistant",
+				parts: [{ type: "data-agentActivity", id: "x", data: {} } as never],
+			},
+		]);
+
+		expect(sanitized).toEqual([
+			{
+				id: "m1",
+				role: "assistant",
+				parts: [
+					{ type: "text", text: "safe" },
+					{
+						type: "tool-sensitive_action_preview",
+						toolCallId: "tool-2",
+						state: "approval-requested",
+						input: { action: "delete", target: "prod invoices" },
+					},
+					{
+						type: "tool-sensitive_action_preview",
+						toolCallId: "tool-3",
+						state: "approval-responded",
+						input: { action: "delete", target: "prod invoices" },
+						approval: {
+							id: "approval-3",
+							approved: false,
+							reason: "Not now",
+						},
+					},
+					{ type: "reasoning", text: "thinking" },
+				],
+			},
+		]);
+	});
+});
+
+describe("normalizeAgentUIChunkStream", () => {
+	test("suppresses step lifecycle chunks by default", async () => {
+		const chunks = await readChunks(
+			normalizeAgentUIChunkStream(
+				streamFromChunks([
+					{ type: "step-start" } as never,
+					{ type: "text-start", id: "t1" },
+					{ type: "step-finish" } as never,
+				]),
+			),
+		);
+
+		expect(chunks).toEqual([{ type: "text-start", id: "t1" }]);
+	});
+
+	test("suppresses all chunks for hidden tool families", async () => {
+		const chunks = await readChunks(
+			normalizeAgentUIChunkStream(
+				streamFromChunks([
+					{
+						type: "tool-input-start",
+						toolName: "ask_math_expert",
+						toolCallId: "tool-1",
+					} as never,
+					{
+						type: "tool-input-delta",
+						toolCallId: "tool-1",
+						delta: "{",
+					} as never,
+					{
+						type: "tool-output-available",
+						toolCallId: "tool-1",
+						output: "8",
+					} as never,
+				]),
+				{ hiddenToolNames: ["ask_math_expert"] },
+			),
+		);
+
+		expect(chunks).toEqual([]);
+	});
+
+	test("passes through non-hidden tool chunks", async () => {
+		const chunks = await readChunks(
+			normalizeAgentUIChunkStream(
+				streamFromChunks([
+					{
+						type: "tool-input-start",
+						toolName: "web_search",
+						toolCallId: "tool-2",
+					} as never,
+					{
+						type: "tool-output-available",
+						toolCallId: "tool-2",
+						output: "ok",
+					} as never,
+				]),
+				{ hiddenToolNames: ["ask_math_expert"] },
+			),
+		);
+
+		expect(chunks).toEqual([
+			{
+				type: "tool-input-start",
+				toolName: "web_search",
+				toolCallId: "tool-2",
+			},
+			{
+				type: "tool-output-available",
+				toolCallId: "tool-2",
+				output: "ok",
+			},
+		]);
 	});
 });
 

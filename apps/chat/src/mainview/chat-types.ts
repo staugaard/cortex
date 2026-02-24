@@ -1,4 +1,4 @@
-import type { UIMessage, UIMessageChunk } from "ai";
+import type { UIMessage, UIMessageChunk, UITool } from "ai";
 import type { ChatElectrobunSchema } from "@cortex/chat-core/rpc";
 
 export type AgentActivityStatus =
@@ -7,7 +7,7 @@ export type AgentActivityStatus =
 	| "cancelled"
 	| "error";
 
-export type AgentActivityWorkflow = "direct" | "delegate" | "math-expert";
+export type AgentActivityWorkflow = "direct" | "math-expert";
 
 export interface AgentActivityEvent {
 	id: string;
@@ -57,7 +57,58 @@ export type ChatDataParts = {
 	agentActivity: AgentActivityData;
 };
 
-export type ChatUIMessage = UIMessage<unknown, ChatDataParts>;
+export type ChatUITools = {
+	get_local_time: UITool & {
+		input: {
+			timezone: string;
+			locale?: string;
+		};
+		output: {
+			timezone: string;
+			locale: string;
+			localTime: string;
+			isoLocalTime: string;
+			offsetMinutes: number;
+		};
+	};
+	always_fail_for_test: UITool & {
+		input: {
+			reason: string;
+		};
+		output: {
+			failed: true;
+		};
+	};
+	sensitive_action_preview: UITool & {
+		input: {
+			action: string;
+			target?: string;
+		};
+		output: {
+			action: string;
+			target?: string;
+			preview: string;
+		};
+	};
+	solve_arithmetic: UITool & {
+		input: {
+			expression: string;
+		};
+		output: {
+			expression: string;
+			result: number;
+			steps: string[];
+		};
+	};
+	ask_math_expert: UITool & {
+		input: {
+			query: string;
+		};
+		output: string;
+	};
+};
+
+export type ChatUIMessage = UIMessage<unknown, ChatDataParts, ChatUITools>;
 export type ChatUIChunk = UIMessageChunk<unknown, ChatDataParts>;
 export type AppChatSchema = ChatElectrobunSchema<ChatUIMessage, ChatUIChunk>;
 

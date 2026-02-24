@@ -30,6 +30,7 @@ bun run cdp:targets
 bun run cdp:screenshot
 bun run cdp:smoke
 bun run cdp:llm
+bun run cdp:tools
 ```
 
 ## Agent Routing
@@ -38,6 +39,16 @@ Default behavior uses a root manager agent that decides whether to:
 
 - answer directly, or
 - call a specialist `ask_math_expert` subagent tool for math-heavy requests.
+
+Test tools configured in this app:
+- Root: `get_local_time`, `always_fail_for_test`, `sensitive_action_preview` (`needsApproval: true`)
+- Subagent: `solve_arithmetic`
+
+Rendering contract:
+- root/model tool calls render in the main chat timeline
+- internal delegation tool plumbing (`ask_math_expert`) is hidden by backend normalization
+- `Agent activity` appears only when a real delegated subagent run occurs
+- `sensitive_action_preview` uses real AI SDK approval flow via in-chat Approve/Deny controls
 
 ## In-Conversation Agent Activity
 

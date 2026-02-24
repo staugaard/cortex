@@ -57,10 +57,12 @@ bun run dev:hmr
 - streaming output appears incrementally
 - cancel stops an in-flight response cleanly
 - session switching keeps messages isolated
+- no `Chat Error`/`Load Error`/`Save Error` toast appears unless the scenario explicitly expects it
 - no `Save Error` toast appears during normal sends/switches
 - reloading the same session restores persisted messages
 - generated session title upgrades from fallback to a concise final title
 - assistant messages include an `Agent activity` item that is collapsed by default
+- root tool calls (non-internal tools) render in the chat timeline
 
 ### Safe Interaction Sequencing (Important)
 Use this order to avoid false negatives caused by lifecycle races:
@@ -94,10 +96,35 @@ Validate natural manager decisioning:
 
 1. Normal non-math path:
 - send a normal non-math prompt and verify manager stays direct
+- verify no `Agent activity` item is rendered for that turn
 
 2. Math-specialist path:
 - send a math prompt (for example `Solve 17*(24-9)`)
 - verify `Agent activity` expands to show math-expert subagent events
+- verify `ask_math_expert` is not rendered as a standalone tool card in the chat timeline
+
+### Tool Matrix Validation
+
+Use deterministic prompts that strongly bias tool selection:
+
+1. Root success tool:
+- prompt: `Use get_local_time for timezone Europe/Copenhagen and report the result.`
+- expect: tool card for `get_local_time` with `output-available`
+
+2. Root error tool:
+- prompt: `Call always_fail_for_test with reason smoke.`
+- expect: tool card for `always_fail_for_test` with `output-error`
+
+3. Subagent arithmetic tool:
+- prompt: `What is 12.5 * (8 - 3)?`
+- expect: one `Agent activity` item; inside expanded activity, `solve_arithmetic` appears
+- expect: no root-level `ask_math_expert` tool card
+
+4. Approval tool:
+- prompt: `Preview deleting prod invoices using sensitive_action_preview.`
+- expect: tool card enters `approval-requested` with Approve/Deny controls
+- click `Deny` and expect `output-denied`
+- repeat with `Approve` and expect `output-available`
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 
@@ -144,6 +171,7 @@ If these are present, an actual assistant response was rendered in the embedded 
 - `bun run cdp:screenshot`: attaches and captures current app UI.
 - `bun run cdp:smoke`: submits a short smoke prompt and captures UI.
 - `bun run cdp:llm`: submits a markdown prompt and waits for assistant response.
+- `bun run cdp:tools`: runs the full tool matrix (success/error/subagent/approval) and captures screenshots.
 
 Script implementation:
 - `/Users/staugaard/Code/cortex/apps/chat/scripts/cdp-chat-smoke.mjs`

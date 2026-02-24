@@ -1,4 +1,13 @@
 import { useChat } from "@ai-sdk/react";
+import {
+	isDataUIPart,
+	isReasoningUIPart,
+	isTextUIPart,
+	isToolOrDynamicToolUIPart,
+	lastAssistantMessageIsCompleteWithApprovalResponses,
+	type DynamicToolUIPart,
+	type ToolUIPart,
+} from "ai";
 import type { ConversationSummary } from "@cortex/chat-core/rpc";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -30,23 +39,19 @@ import { chatTransport } from "./chat-transport";
 import {
 	createTemporarySessionId,
 	TEMP_SESSION_PREFIX,
+	type ChatUITools,
 	type ChatUIMessage,
 } from "./chat-types";
 
 type ChatMessagePart = ChatUIMessage["parts"][number];
+type ToolPart = DynamicToolUIPart | ToolUIPart<ChatUITools>;
 
-function isToolPart(part: ChatMessagePart): boolean {
-	return part.type === "dynamic-tool" || part.type.startsWith("tool-");
-}
-
-function toolNameFromPart(part: ChatMessagePart): string {
+function toolNameFromPart(part: ToolPart): string {
 	if (part.type === "dynamic-tool") {
 		return part.toolName;
 	}
-	if (part.type.startsWith("tool-")) {
-		return part.type.slice("tool-".length);
-	}
-	return "tool";
+
+	return part.type.slice("tool-".length);
 }
 
 function formatPartPayload(payload: unknown): string {
@@ -61,6 +66,108 @@ function formatPartPayload(payload: unknown): string {
 	} catch {
 		return String(payload);
 	}
+}
+
+function toolCallIdFromPart(part: ToolPart): string | undefined {
+	return part.toolCallId;
+}
+
+function toolStateFromPart(part: ToolPart): string {
+	return part.state;
+}
+
+function toolErrorTextFromPart(part: ToolPart): string | undefined {
+	return "errorText" in part ? part.errorText : undefined;
+}
+
+function toolInputFromPart(part: ToolPart): unknown {
+	return part.input;
+}
+
+function toolOutputFromPart(part: ToolPart): unknown {
+	return "output" in part ? part.output : undefined;
+}
+
+function toolApprovalIdFromPart(part: ToolPart): string | undefined {
+	return part.approval?.id;
+}
+
+function toToolPart(part: ChatMessagePart): ToolPart | null {
+	if (!isToolOrDynamicToolUIPart(part)) {
+		return null;
+	}
+	return part as ToolPart;
+}
+
+function ToolPartItem({
+	part,
+	disableActions,
+	onApprove,
+	onDeny,
+}: {
+	part: ToolPart;
+	disableActions: boolean;
+	onApprove: (approvalId: string) => void;
+	onDeny: (approvalId: string) => void;
+}) {
+	const toolCallId = toolCallIdFromPart(part);
+	const toolState = toolStateFromPart(part);
+	const toolErrorText = toolErrorTextFromPart(part);
+	const toolInput = toolInputFromPart(part);
+	const toolOutput = toolOutputFromPart(part);
+	const approvalId = toolApprovalIdFromPart(part);
+	const isAwaitingApproval =
+		part.state === "approval-requested" && typeof approvalId === "string";
+
+	return (
+		<div className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs">
+			<div className="font-medium">
+				Tool: {toolNameFromPart(part)} · {toolState}
+			</div>
+			{toolCallId ? (
+				<div className="text-[11px] text-muted-foreground">
+					Call: {toolCallId}
+				</div>
+			) : null}
+			{toolErrorText ? (
+				<pre className="mt-1 overflow-x-auto rounded-sm bg-red-50 px-2 py-1 text-[11px] text-red-700">
+					{toolErrorText}
+				</pre>
+			) : null}
+			{toolInput != null ? (
+				<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
+					input: {formatPartPayload(toolInput)}
+				</pre>
+			) : null}
+			{toolOutput != null ? (
+				<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
+					output: {formatPartPayload(toolOutput)}
+				</pre>
+			) : null}
+			{isAwaitingApproval ? (
+				<div className="mt-2 flex items-center gap-2">
+					<button
+						type="button"
+						className="rounded border border-border bg-background px-2 py-1 text-[11px] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
+						onClick={() => onApprove(approvalId)}
+						disabled={disableActions}
+						data-testid="tool-approve-button"
+					>
+						Approve
+					</button>
+					<button
+						type="button"
+						className="rounded border border-border bg-background px-2 py-1 text-[11px] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
+						onClick={() => onDeny(approvalId)}
+						disabled={disableActions}
+						data-testid="tool-deny-button"
+					>
+						Deny
+					</button>
+				</div>
+			) : null}
+		</div>
+	);
 }
 
 function asErrorMessage(issue: unknown): string {
@@ -228,9 +335,14 @@ export default function App() {
 		error,
 		clearError,
 		stop,
+		addToolApprovalResponse,
 	} = useChat<ChatUIMessage>({
 		id: activeSessionId,
 		transport: chatTransport,
+		sendAutomaticallyWhen: ({ messages: currentMessages }) =>
+			lastAssistantMessageIsCompleteWithApprovalResponses({
+				messages: currentMessages,
+			}),
 		onFinish: ({ messages: finishedMessages }) => {
 			const sessionIdAtFinish = activeSessionIdRef.current;
 			void persistSession(sessionIdAtFinish, finishedMessages, {
@@ -243,6 +355,21 @@ export default function App() {
 			setSaveError(issue.message);
 		},
 	});
+
+	const handleToolApproval = useCallback(
+		(approvalId: string, approved: boolean) => {
+			void Promise.resolve(
+				addToolApprovalResponse({
+					id: approvalId,
+					approved,
+					reason: approved ? undefined : "Denied in chat UI",
+				}),
+			).catch((issue) => {
+				setSaveError(asErrorMessage(issue));
+			});
+		},
+		[addToolApprovalResponse],
+	);
 
 	useEffect(() => {
 		messagesRef.current = messages;
@@ -393,6 +520,9 @@ export default function App() {
 		void sendMessage({ text: message.text });
 	};
 
+	const disableToolActions =
+		status === "streaming" || status === "submitted";
+
 	return (
 		<div className="flex h-screen flex-col bg-background text-foreground">
 			<Toolbar
@@ -438,90 +568,72 @@ export default function App() {
 									>
 										<MessageContent>
 											{message.parts.map((part, i) => {
-												switch (part.type) {
-													case "text":
-														return (
-															<MessageResponse
-																key={`${message.id}-${i}`}
-																isAnimating={
-																	(status === "streaming" ||
-																		status === "submitted") &&
-																	message.role ===
-																		"assistant"
-																}
-															>
-																{part.text}
-															</MessageResponse>
-														);
-													case "reasoning":
-														return (
-															<div
-																key={`${message.id}-${i}-reasoning`}
-																className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground"
-															>
-																<div className="mb-1 font-medium uppercase tracking-wide">
-																	Reasoning
-																</div>
-																{part.text}
-															</div>
-														);
-													case "data-agentActivity":
-														return (
-															<AgentActivityItem
-																key={`${message.id}-${part.type}-${part.data.activityId}`}
-																activity={part.data}
-															/>
-														);
-												default:
-													if (isToolPart(part)) {
-														const dynamicPart = part as {
-															state?: string;
-															input?: unknown;
-															output?: unknown;
-																errorText?: string;
-																toolCallId?: string;
-															};
-															return (
-																<div
-																	key={`${message.id}-${part.type}-${i}`}
-																	className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs"
-																>
-																	<div className="font-medium">
-																		Tool: {toolNameFromPart(part)} ·{" "}
-																		{dynamicPart.state ?? "unknown"}
-																	</div>
-																	{dynamicPart.toolCallId ? (
-																		<div className="text-[11px] text-muted-foreground">
-																			Call: {dynamicPart.toolCallId}
-																		</div>
-																	) : null}
-																	{dynamicPart.errorText ? (
-																		<pre className="mt-1 overflow-x-auto rounded-sm bg-red-50 px-2 py-1 text-[11px] text-red-700">
-																			{dynamicPart.errorText}
-																		</pre>
-																	) : null}
-																	{dynamicPart.input != null ? (
-																		<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
-																			input: {formatPartPayload(dynamicPart.input)}
-																		</pre>
-																	) : null}
-																	{dynamicPart.output != null ? (
-																		<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
-																			output: {formatPartPayload(dynamicPart.output)}
-																		</pre>
-																	) : null}
-																</div>
-															);
-														}
-														return (
-															<span
-																key={`${message.id}-${part.type}-${i}`}
-																className="inline-block rounded-md bg-black/5 px-1.5 py-0.5 text-[11px] text-muted-foreground"
-															>
-																[{part.type}]
-															</span>
-														);
+												if (isTextUIPart(part)) {
+													return (
+														<MessageResponse
+															key={`${message.id}-${i}`}
+															isAnimating={
+																(status === "streaming" ||
+																	status === "submitted") &&
+																message.role === "assistant"
+															}
+														>
+															{part.text}
+														</MessageResponse>
+													);
 												}
+
+												if (isReasoningUIPart(part)) {
+													return (
+														<div
+															key={`${message.id}-${i}-reasoning`}
+															className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground"
+														>
+															<div className="mb-1 font-medium uppercase tracking-wide">
+																Reasoning
+															</div>
+															{part.text}
+														</div>
+													);
+												}
+
+												if (
+													isDataUIPart(part) &&
+													part.type === "data-agentActivity"
+												) {
+													return (
+														<AgentActivityItem
+															key={`${message.id}-${part.type}-${part.data.activityId}`}
+															activity={part.data}
+														/>
+													);
+												}
+
+												const toolPart = toToolPart(part);
+												if (toolPart) {
+													return (
+														<ToolPartItem
+															key={`${message.id}-${part.type}-${i}`}
+															part={toolPart}
+															disableActions={disableToolActions}
+															onApprove={(approvalId) =>
+																handleToolApproval(approvalId, true)
+															}
+															onDeny={(approvalId) =>
+																handleToolApproval(approvalId, false)
+															}
+														/>
+													);
+												}
+
+												return (
+													<span
+														key={`${message.id}-${part.type}-${i}`}
+														className="inline-block rounded-md bg-black/5 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+													>
+														[{part.type}]
+													</span>
+												);
 											})}
 										</MessageContent>
 									</Message>
