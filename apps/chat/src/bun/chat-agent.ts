@@ -17,6 +17,15 @@ import type {
 
 export const CHAT_MODEL_ID = "claude-sonnet-4-6";
 const INTERNAL_MANAGER_TOOL_NAMES = ["ask_math_expert"] as const;
+const ANTHROPIC_REASONING_PROVIDER_OPTIONS = {
+	anthropic: {
+		sendReasoning: true,
+		thinking: {
+			type: "enabled",
+			budgetTokens: 4096,
+		},
+	},
+} as const;
 
 type ArithmeticToken = {
 	type: "number" | "operator" | "paren";
@@ -251,6 +260,7 @@ function createIsoLocalTime(date: Date, timeZone: string, offsetMinutes: number)
 
 const mathExpertAgent = new ToolLoopAgent({
 	model: anthropic(CHAT_MODEL_ID),
+	providerOptions: ANTHROPIC_REASONING_PROVIDER_OPTIONS,
 	instructions:
 		"You are a math expert subagent. For arithmetic expressions, call solve_arithmetic to compute the result. Then return a concise markdown response with the result and one short justification line.",
 	tools: {
@@ -360,6 +370,7 @@ function createManagerAgent(input: {
 
 	return new ToolLoopAgent({
 		model: anthropic(CHAT_MODEL_ID),
+		providerOptions: ANTHROPIC_REASONING_PROVIDER_OPTIONS,
 		instructions:
 			"You are a root assistant with tools. Rules: 1) For timezone or current-time questions, call get_local_time. 2) For explicit failure test requests, call always_fail_for_test. 3) For sensitive preview requests, call sensitive_action_preview and wait for approval. 4) For arithmetic, calculations, equations, probabilities, or unit conversions, call ask_math_expert exactly once. 5) For other requests, answer directly.",
 		stopWhen: stepCountIs(8),

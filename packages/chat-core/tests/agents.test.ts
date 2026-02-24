@@ -302,7 +302,6 @@ describe("sanitizeUIMessagesForModelInput", () => {
 							reason: "Not now",
 						},
 					},
-					{ type: "reasoning", text: "thinking" },
 				],
 			},
 		]);

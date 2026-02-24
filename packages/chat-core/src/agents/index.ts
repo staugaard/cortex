@@ -24,7 +24,6 @@ void assertBunRuntime;
 
 const MODEL_SAFE_PART_TYPES = new Set([
 	"text",
-	"reasoning",
 	"file",
 	"source-url",
 	"source-document",

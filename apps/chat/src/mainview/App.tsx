@@ -6,6 +6,7 @@ import {
 	isToolOrDynamicToolUIPart,
 	lastAssistantMessageIsCompleteWithApprovalResponses,
 	type DynamicToolUIPart,
+	type ReasoningUIPart,
 	type ToolUIPart,
 } from "ai";
 import type { ConversationSummary } from "@cortex/chat-core/rpc";
@@ -167,6 +168,20 @@ function ToolPartItem({
 				</div>
 			) : null}
 		</div>
+	);
+}
+
+function ReasoningPartItem({ part }: { part: ReasoningUIPart }) {
+	const isStreaming = part.state === "streaming";
+	return (
+		<details className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground">
+			<summary className="cursor-pointer list-none font-medium">
+				Reasoning{isStreaming ? " · streaming" : ""}
+			</summary>
+			<div className="mt-2 text-foreground">
+				<MessageResponse>{part.text}</MessageResponse>
+			</div>
+		</details>
 	);
 }
 
@@ -585,15 +600,10 @@ export default function App() {
 
 												if (isReasoningUIPart(part)) {
 													return (
-														<div
+														<ReasoningPartItem
 															key={`${message.id}-${i}-reasoning`}
-															className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground"
-														>
-															<div className="mb-1 font-medium uppercase tracking-wide">
-																Reasoning
-															</div>
-															{part.text}
-														</div>
+															part={part}
+														/>
 													);
 												}
 

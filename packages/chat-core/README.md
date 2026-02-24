@@ -31,7 +31,11 @@ Shared chat infrastructure for Cortex desktop apps.
 Normalization policy defaults:
 - `hideStepLifecycleChunks: true`
 - `hiddenToolNames: []`
-- `sanitizeUIMessagesForModelInput(...)` drops `data-*` parts but keeps text/reasoning/file/source and tool parts so approval/tool flows can continue.
+- `sanitizeUIMessagesForModelInput(...)` drops `data-*` and `reasoning` parts, and keeps:
+  - model-safe user/assistant content (`text`, `file`, `source-*`)
+  - approval-continuation tool states (`approval-requested`, `approval-responded`)
+
+This avoids replaying terminal tool/result history back into provider input while preserving AI SDK approval continuation.
 
 These utilities are intentionally app-agnostic. Product prompts, tool visibility policy, and domain-specific tools stay in each app.
 

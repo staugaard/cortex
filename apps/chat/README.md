@@ -49,6 +49,7 @@ Rendering contract:
 - internal delegation tool plumbing (`ask_math_expert`) is hidden by backend normalization
 - `Agent activity` appears only when a real delegated subagent run occurs
 - `sensitive_action_preview` uses real AI SDK approval flow via in-chat Approve/Deny controls
+- Anthropic reasoning is enabled and streamed as AI SDK `reasoning` parts, rendered inline in chat
 
 ## In-Conversation Agent Activity
 

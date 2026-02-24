@@ -63,6 +63,7 @@ bun run dev:hmr
 - generated session title upgrades from fallback to a concise final title
 - assistant messages include an `Agent activity` item that is collapsed by default
 - root tool calls (non-internal tools) render in the chat timeline
+- reasoning output appears as a collapsible `Reasoning` section when the model emits it
 
 ### Safe Interaction Sequencing (Important)
 Use this order to avoid false negatives caused by lifecycle races:
@@ -125,6 +126,10 @@ Use deterministic prompts that strongly bias tool selection:
 - expect: tool card enters `approval-requested` with Approve/Deny controls
 - click `Deny` and expect `output-denied`
 - repeat with `Approve` and expect `output-available`
+
+5. Reasoning visibility:
+- prompt: `Think step by step and then answer: what is 27*14?`
+- expect: at least one assistant `Reasoning` item appears (collapsible)
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 
