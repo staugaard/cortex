@@ -230,6 +230,38 @@ describe("createAgentLoopUIChunkStream", () => {
 		]);
 		expect(capturedMessages).toHaveLength(1);
 	});
+
+	test("enables reasoning and sources in UI stream options", async () => {
+		const streamOptionCapture: unknown[] = [];
+		const streamAgent: Agent<never, ToolSet, Output> = {
+			version: "agent-v1",
+			id: "stream-options-agent",
+			tools: {},
+			generate: async () => {
+				throw new Error("not used");
+			},
+			stream: async () => {
+				return {
+					toUIMessageStream: (options: unknown) => {
+						streamOptionCapture.push(options);
+						return createAssistantChunkStream("ok");
+					},
+				} as never;
+			},
+		};
+
+		await createAgentLoopUIChunkStream({
+			agent: streamAgent,
+			uiMessages: [createUserMessage("hello")],
+		});
+
+		expect(streamOptionCapture).toEqual([
+			expect.objectContaining({
+				sendReasoning: true,
+				sendSources: true,
+			}),
+		]);
+	});
 });
 
 describe("sanitizeUIMessagesForModelInput", () => {

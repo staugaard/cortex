@@ -523,7 +523,6 @@ export async function createChatRunUIChunkStream(
 	input: CreateChatRunUIChunkStreamInput,
 ): Promise<ReadableStream<ChatUIChunk>> {
 	const activityId = `agent-activity:${input.runId}`;
-	let resolvedWorkflow: AgentActivityWorkflow = "direct";
 	let hasDelegated = false;
 	let delegatedPrompt: string | undefined;
 	let delegatedOutput: string | undefined;
@@ -537,7 +536,7 @@ export async function createChatRunUIChunkStream(
 			input.onActivityUpdate(
 				toAgentActivityData({
 					snapshot,
-					workflow: resolvedWorkflow,
+					workflow: "math-expert",
 					prompt: delegatedPrompt,
 					output: delegatedOutput,
 				}),
@@ -569,7 +568,6 @@ export async function createChatRunUIChunkStream(
 		onDelegate: async (query) => {
 			hasDelegated = true;
 			delegatedPrompt = query;
-			resolvedWorkflow = "math-expert";
 			await activityRecorder.addNote("manager", "Delegating to math expert");
 		},
 		onRedundantDelegate: async () => {

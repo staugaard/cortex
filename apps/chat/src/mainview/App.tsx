@@ -6,7 +6,6 @@ import {
 	isToolOrDynamicToolUIPart,
 	lastAssistantMessageIsCompleteWithApprovalResponses,
 	type DynamicToolUIPart,
-	type ReasoningUIPart,
 	type ToolUIPart,
 } from "ai";
 import type { ConversationSummary } from "@cortex/chat-core/rpc";
@@ -22,6 +21,34 @@ import {
 	MessageContent,
 	MessageResponse,
 } from "@/components/ai-elements/message";
+import {
+	Reasoning,
+	ReasoningContent,
+	ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import { CodeBlock } from "@/components/ai-elements/code-block";
+import {
+	Snippet,
+	SnippetCopyButton,
+	SnippetInput,
+} from "@/components/ai-elements/snippet";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import {
+	Confirmation,
+	ConfirmationAccepted,
+	ConfirmationAction,
+	ConfirmationActions,
+	ConfirmationRejected,
+	ConfirmationRequest,
+	ConfirmationTitle,
+} from "@/components/ai-elements/confirmation";
+import {
+	Tool,
+	ToolContent,
+	ToolHeader,
+	ToolInput,
+	ToolOutput,
+} from "@/components/ai-elements/tool";
 import {
 	PromptInput,
 	PromptInputFooter,
@@ -47,42 +74,8 @@ import {
 type ChatMessagePart = ChatUIMessage["parts"][number];
 type ToolPart = DynamicToolUIPart | ToolUIPart<ChatUITools>;
 
-function toolNameFromPart(part: ToolPart): string {
-	if (part.type === "dynamic-tool") {
-		return part.toolName;
-	}
-
-	return part.type.slice("tool-".length);
-}
-
-function formatPartPayload(payload: unknown): string {
-	if (payload == null) {
-		return "";
-	}
-	if (typeof payload === "string") {
-		return payload;
-	}
-	try {
-		return JSON.stringify(payload, null, 2);
-	} catch {
-		return String(payload);
-	}
-}
-
-function toolCallIdFromPart(part: ToolPart): string | undefined {
-	return part.toolCallId;
-}
-
-function toolStateFromPart(part: ToolPart): string {
-	return part.state;
-}
-
 function toolErrorTextFromPart(part: ToolPart): string | undefined {
 	return "errorText" in part ? part.errorText : undefined;
-}
-
-function toolInputFromPart(part: ToolPart): unknown {
-	return part.input;
 }
 
 function toolOutputFromPart(part: ToolPart): unknown {
@@ -100,7 +93,7 @@ function toToolPart(part: ChatMessagePart): ToolPart | null {
 	return part as ToolPart;
 }
 
-function ToolPartItem({
+function ElementsToolPart({
 	part,
 	disableActions,
 	onApprove,
@@ -111,77 +104,75 @@ function ToolPartItem({
 	onApprove: (approvalId: string) => void;
 	onDeny: (approvalId: string) => void;
 }) {
-	const toolCallId = toolCallIdFromPart(part);
-	const toolState = toolStateFromPart(part);
+	const toolCallId = part.toolCallId;
+	const toolState = part.state;
 	const toolErrorText = toolErrorTextFromPart(part);
-	const toolInput = toolInputFromPart(part);
 	const toolOutput = toolOutputFromPart(part);
 	const approvalId = toolApprovalIdFromPart(part);
-	const isAwaitingApproval =
+	const hasApproval = part.approval != null;
+	const canRespondToApproval =
 		part.state === "approval-requested" && typeof approvalId === "string";
 
 	return (
-		<div className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs">
-			<div className="font-medium">
-				Tool: {toolNameFromPart(part)} · {toolState}
-			</div>
-			{toolCallId ? (
-				<div className="text-[11px] text-muted-foreground">
-					Call: {toolCallId}
-				</div>
-			) : null}
-			{toolErrorText ? (
-				<pre className="mt-1 overflow-x-auto rounded-sm bg-red-50 px-2 py-1 text-[11px] text-red-700">
-					{toolErrorText}
-				</pre>
-			) : null}
-			{toolInput != null ? (
-				<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
-					input: {formatPartPayload(toolInput)}
-				</pre>
-			) : null}
-			{toolOutput != null ? (
-				<pre className="mt-1 overflow-x-auto rounded-sm bg-black/10 px-2 py-1 text-[11px]">
-					output: {formatPartPayload(toolOutput)}
-				</pre>
-			) : null}
-			{isAwaitingApproval ? (
-				<div className="mt-2 flex items-center gap-2">
-					<button
-						type="button"
-						className="rounded border border-border bg-background px-2 py-1 text-[11px] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
-						onClick={() => onApprove(approvalId)}
-						disabled={disableActions}
-						data-testid="tool-approve-button"
-					>
-						Approve
-					</button>
-					<button
-						type="button"
-						className="rounded border border-border bg-background px-2 py-1 text-[11px] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
-						onClick={() => onDeny(approvalId)}
-						disabled={disableActions}
-						data-testid="tool-deny-button"
-					>
-						Deny
-					</button>
-				</div>
-			) : null}
-		</div>
-	);
-}
-
-function ReasoningPartItem({ part }: { part: ReasoningUIPart }) {
-	const isStreaming = part.state === "streaming";
-	return (
-		<details className="rounded-md border border-border/70 bg-black/5 px-3 py-2 text-xs text-muted-foreground">
-			<summary className="cursor-pointer list-none font-medium">
-				Reasoning{isStreaming ? " · streaming" : ""}
-			</summary>
-			<div className="mt-2 text-foreground">
-				<MessageResponse>{part.text}</MessageResponse>
-			</div>
-		</details>
+		<Tool defaultOpen={toolState !== "output-available"}>
+			{part.type === "dynamic-tool" ? (
+				<ToolHeader
+					type={part.type}
+					state={toolState}
+					toolName={part.toolName}
+				/>
+			) : (
+				<ToolHeader type={part.type} state={toolState} />
+			)}
+			<ToolContent>
+				{toolCallId ? (
+					<Snippet code={toolCallId}>
+						<SnippetInput aria-label="Tool call ID" />
+						<SnippetCopyButton />
+					</Snippet>
+				) : null}
+				{part.state === "input-streaming" ? (
+					<Shimmer>Streaming tool input...</Shimmer>
+				) : null}
+				{part.input != null ? <ToolInput input={part.input} /> : null}
+				<ToolOutput output={toolOutput} errorText={toolErrorText} />
+				{hasApproval ? (
+					<Confirmation approval={part.approval} state={part.state}>
+						<ConfirmationTitle>Approval Required</ConfirmationTitle>
+						<ConfirmationRequest>
+							This tool call requires explicit approval before execution.
+						</ConfirmationRequest>
+						<ConfirmationAccepted>Approved.</ConfirmationAccepted>
+						<ConfirmationRejected>Denied.</ConfirmationRejected>
+						<ConfirmationActions>
+							<ConfirmationAction
+								onClick={() => {
+									if (approvalId) {
+										onApprove(approvalId);
+									}
+								}}
+								disabled={disableActions || !canRespondToApproval}
+								data-testid="tool-approve-button"
+							>
+								Approve
+							</ConfirmationAction>
+							<ConfirmationAction
+								variant="outline"
+								onClick={() => {
+									if (approvalId) {
+										onDeny(approvalId);
+									}
+								}}
+								disabled={disableActions || !canRespondToApproval}
+								data-testid="tool-deny-button"
+							>
+								Deny
+							</ConfirmationAction>
+						</ConfirmationActions>
+					</Confirmation>
+				) : null}
+			</ToolContent>
+		</Tool>
 	);
 }
 
@@ -598,14 +589,17 @@ export default function App() {
 													);
 												}
 
-												if (isReasoningUIPart(part)) {
-													return (
-														<ReasoningPartItem
-															key={`${message.id}-${i}-reasoning`}
-															part={part}
-														/>
-													);
-												}
+											if (isReasoningUIPart(part)) {
+												return (
+													<Reasoning
+														key={`${message.id}-${i}-reasoning`}
+														isStreaming={part.state === "streaming"}
+													>
+														<ReasoningTrigger />
+														<ReasoningContent>{part.text}</ReasoningContent>
+													</Reasoning>
+												);
+											}
 
 												if (
 													isDataUIPart(part) &&
@@ -622,7 +616,7 @@ export default function App() {
 												const toolPart = toToolPart(part);
 												if (toolPart) {
 													return (
-														<ToolPartItem
+														<ElementsToolPart
 															key={`${message.id}-${part.type}-${i}`}
 															part={toolPart}
 															disableActions={disableToolActions}
@@ -637,12 +631,15 @@ export default function App() {
 												}
 
 												return (
-													<span
+													<div
 														key={`${message.id}-${part.type}-${i}`}
-														className="inline-block rounded-md bg-black/5 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+														className="max-w-full"
 													>
-														[{part.type}]
-													</span>
+														<CodeBlock
+															code={`Unsupported UI part: ${part.type}`}
+															language="json"
+														/>
+													</div>
 												);
 											})}
 										</MessageContent>

@@ -39,6 +39,8 @@ This avoids replaying terminal tool/result history back into provider input whil
 
 These utilities are intentionally app-agnostic. Product prompts, tool visibility policy, and domain-specific tools stay in each app.
 
+When app UIs are Elements-first, app stream wiring should explicitly enable UI parts needed by Elements renderers (for example `sendReasoning` / `sendSources` in `createUIMessageStream`).
+
 ## Validation
 
 From repo root:

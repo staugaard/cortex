@@ -31,6 +31,7 @@ bun run cdp:screenshot
 bun run cdp:smoke
 bun run cdp:llm
 bun run cdp:tools
+bun run check:elements-adoption
 ```
 
 ## Agent Routing
@@ -50,6 +51,14 @@ Rendering contract:
 - `Agent activity` appears only when a real delegated subagent run occurs
 - `sensitive_action_preview` uses real AI SDK approval flow via in-chat Approve/Deny controls
 - Anthropic reasoning is enabled and streamed as AI SDK `reasoning` parts, rendered inline in chat
+
+## Elements Governance
+
+- Adoption is docs-gated: every adopted component must follow official best practices from `https://elements.ai-sdk.dev/components/<component>`.
+- Governance and checklist source of truth:
+  - `/Users/staugaard/Code/cortex/apps/chat/docs/ai-sdk-elements-adoption.md`
+- Enforcement check:
+  - `bun run check:elements-adoption`
 
 ## In-Conversation Agent Activity
 

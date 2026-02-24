@@ -8,6 +8,8 @@ Use either:
 - direct unscripted interaction in the live app window, or
 - CDP scripts when you want repeatability/artifacts.
 
+Also treat `/Users/staugaard/Code/cortex/apps/chat/docs/ai-sdk-elements-adoption.md` as a required checklist source when adopting any AI SDK Elements component.
+
 ## Why This Exists
 `src/mainview/chat-rpc.ts` initializes `Electroview`, which requires Electrobun-injected globals (`__electrobunWebviewId`, `__electrobunRpcSocketPort`).
 A standalone browser tab does not have those globals, so RPC bootstrapping fails and the UI can appear blank/broken.
@@ -130,6 +132,10 @@ Use deterministic prompts that strongly bias tool selection:
 5. Reasoning visibility:
 - prompt: `Think step by step and then answer: what is 27*14?`
 - expect: at least one assistant `Reasoning` item appears (collapsible)
+
+6. Elements compliance check:
+- run `bun run check:elements-adoption`
+- expect success and no missing must-now components/imports
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 

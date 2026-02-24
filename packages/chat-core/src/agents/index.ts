@@ -147,6 +147,8 @@ export async function createAgentLoopUIChunkStream<
 	return {
 		stream: streamResult.toUIMessageStream({
 			originalMessages: validatedMessages,
+			sendReasoning: true,
+			sendSources: true,
 		}) as unknown as ReadableStream<UI_CHUNK>,
 		validatedMessages,
 	};

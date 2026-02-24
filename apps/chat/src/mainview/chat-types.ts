@@ -7,7 +7,7 @@ export type AgentActivityStatus =
 	| "cancelled"
 	| "error";
 
-export type AgentActivityWorkflow = "direct" | "math-expert";
+export type AgentActivityWorkflow = "math-expert";
 
 export interface AgentActivityEvent {
 	id: string;
