@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["bun"]
+  },
+  "include": [
+    "src/types/**/*.ts",
+    "src/rpc/**/*.ts",
+    "src/bun/**/*.ts",
+    "src/internal/runtime-tags.ts",
+    "tests/typecheck/bun-entry.ts"
+  ]
+}

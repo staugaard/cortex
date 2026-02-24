@@ -1,0 +1,26 @@
+{
+  "name": "@cortex/listing-hunter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types/index.ts",
+    "./bun": "./src/bun/index.ts",
+    "./react": "./src/react/index.ts",
+    "./rpc": "./src/rpc/index.ts"
+  },
+  "scripts": {
+    "typecheck:web": "tsc -p tsconfig.web.json --pretty false",
+    "typecheck:bun": "tsc -p tsconfig.bun.json --pretty false",
+    "typecheck": "bun run typecheck:web && bun run typecheck:bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.2",
+    "zod": "^3.25.7"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}

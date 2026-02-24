@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": [
+    "src/types/**/*.ts",
+    "src/rpc/**/*.ts",
+    "src/react/**/*.ts",
+    "src/internal/runtime-tags.ts",
+    "tests/typecheck/web-entry.ts"
+  ]
+}

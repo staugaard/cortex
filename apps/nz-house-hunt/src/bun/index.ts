@@ -1,8 +1,17 @@
+import { join } from "node:path";
 import { BrowserWindow, Updater, Utils } from "electrobun/bun";
+import { createListingHunter } from "@cortex/listing-hunter/bun";
 import { appRpc } from "./rpc";
+import { rentalListingSchema } from "./listing-schema";
+import type { RentalListing } from "./listing-schema";
 
 const DEV_SERVER_PORT = 5174;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
+
+const hunter = createListingHunter<RentalListing>({
+	schema: rentalListingSchema,
+	dbPath: join(import.meta.dir, "../../data/nz-house-hunt.sqlite"),
+});
 
 async function getMainViewUrl(): Promise<string> {
 	const channel = await Updater.localInfo.channel();
@@ -35,6 +44,7 @@ const mainWindow = new BrowserWindow({
 });
 
 mainWindow.on("close", () => {
+	hunter.close();
 	Utils.quit();
 });
 
