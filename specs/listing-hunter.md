@@ -1,6 +1,6 @@
 # Listing Hunter Specification
 
-> See also: [Listing Hunter concept doc](../apps/nz-house-hunt/.context/listing-hunter-concept.md) for the original product vision.
+> See also: [Listing Hunter concept doc](../packages/listing-hunter/listing-hunter-concept.md) for the original product vision.
 
 ## 1. Problem Statement
 
