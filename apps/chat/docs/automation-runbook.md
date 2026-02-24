@@ -143,56 +143,39 @@ Use deterministic prompts that strongly bias tool selection:
 bun run dev:hmr:cef
 ```
 
-## Optional Scripted Verification (CDP)
-Run these from `/Users/staugaard/Code/cortex/apps/chat` when you need repeatable scripted checks.
+## Interactive CLI Verification (playwright-cli)
 
-Scripts are optional helpers. Do not block on scripts when direct in-app interaction is faster or clearer for the current debugging task.
+For interactive automation (screenshots, DOM inspection, form filling), use `playwright-cli` instead of custom scripts. It connects to the running CEF app via CDP and provides a stateful session.
 
-1. Confirm CDP endpoint is alive:
+See the full guide: `/docs/playwright-cli-guide.md`
 
-```bash
-bun run cdp:check
-bun run cdp:targets
-```
-
-Expected: JSON output with a page target for `http://localhost:5174/`.
-
-2. Capture current UI state from the live embedded app:
+Quick example — screenshot the current app state:
 
 ```bash
-bun run cdp:screenshot
+playwright-cli open
+playwright-cli tab-select 1
+playwright-cli screenshot --filename=current-state.png
+playwright-cli close
 ```
 
-3. Verify an actual LLM round-trip (prompt + assistant reply + screenshot):
+Quick example — submit a prompt and capture the result:
 
 ```bash
-bun run cdp:llm
+playwright-cli open
+playwright-cli tab-select 1
+playwright-cli snapshot                          # find the message input ref
+playwright-cli fill e5 "What is 2 + 2?"         # ref may vary, check snapshot
+playwright-cli press Enter
+playwright-cli screenshot --filename=response.png
+playwright-cli close
 ```
 
-Expected command output includes:
-- `CDP attached to: http://localhost:5174/`
-- `Last assistant message: ...`
-- `Screenshot saved: .../output/playwright/cdp-llm-response.png`
+## CDP Health Checks
 
-If these are present, an actual assistant response was rendered in the embedded app.
+These curl-based scripts remain for quick endpoint verification:
 
-## CDP Scripts
 - `bun run cdp:check`: prints CDP version endpoint.
 - `bun run cdp:targets`: prints active page targets.
-- `bun run cdp:screenshot`: attaches and captures current app UI.
-- `bun run cdp:smoke`: submits a short smoke prompt and captures UI.
-- `bun run cdp:llm`: submits a markdown prompt and waits for assistant response.
-- `bun run cdp:tools`: runs the full tool matrix (success/error/subagent/approval) and captures screenshots.
-
-Script implementation:
-- `/Users/staugaard/Code/cortex/apps/chat/scripts/cdp-chat-smoke.mjs`
-
-Environment knobs for the script:
-- `CDP_ENDPOINT` (default: `http://127.0.0.1:9222`)
-- `CDP_PROMPT`
-- `CDP_ASSISTANT_WAIT_MS` (default: `20000`)
-- `CDP_WAIT_MS` (default: `1000`)
-- `CDP_SCREENSHOT` (default: `output/playwright/cdp-chat.png`)
 
 ## Troubleshooting
 - `Anthropic API key is missing`:

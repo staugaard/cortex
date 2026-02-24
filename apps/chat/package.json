@@ -12,10 +12,6 @@
 		"build:prod": "vite build && electrobun build --channel prod",
 		"cdp:check": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/version",
 		"cdp:targets": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/list",
-		"cdp:screenshot": "node scripts/cdp-chat-smoke.mjs",
-		"cdp:smoke": "CDP_PROMPT=\"Tooling smoke prompt\" node scripts/cdp-chat-smoke.mjs",
-		"cdp:llm": "CDP_PROMPT=\"Give a two-bullet markdown response confirming you are live.\" CDP_ASSISTANT_WAIT_MS=30000 CDP_WAIT_MS=2000 CDP_SCREENSHOT=output/playwright/cdp-llm-response.png node scripts/cdp-chat-smoke.mjs",
-		"cdp:tools": "node scripts/cdp-tool-matrix.mjs",
 		"check:elements-adoption": "bun scripts/check-elements-adoption.mjs",
 		"start": "bun run dev",
 		"typecheck": "tsc -p tsconfig.json --pretty false && bun run check:elements-adoption"
@@ -59,7 +55,6 @@
 		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react": "^5.1.4",
 		"concurrently": "^9.2.1",
-		"playwright-core": "^1.58.2",
 		"tailwindcss": "^4.2.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1"

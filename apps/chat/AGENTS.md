@@ -49,16 +49,25 @@ Run inside this workspace:
 - `bun run typecheck`
 - `bun run cdp:check`
 - `bun run cdp:targets`
-- `bun run cdp:screenshot`
-- `bun run cdp:smoke`
-- `bun run cdp:llm`
+
+playwright-cli (interactive, after `bun run dev:hmr:cef`):
+- `playwright-cli open` (connect to CDP)
+- `playwright-cli tab-select 1` (switch to app tab)
+- `playwright-cli snapshot` (DOM accessibility tree with element refs)
+- `playwright-cli screenshot` (capture viewport)
+- `playwright-cli fill <ref> <text>` / `playwright-cli click <ref>` (interact with elements)
+- `playwright-cli eval <js>` (run JS in page context)
+- `playwright-cli console` (read console logs)
+- `playwright-cli close` (end session)
 
 ## Automation Mode (For Coding Agents)
-- Preferred mode for deep UI automation is CEF with remote debugging.
+- Preferred mode for interactive UI automation is `playwright-cli` connected to CEF via CDP.
 - Manual unscripted interaction with the running app is also valid and encouraged when it is faster/more direct.
 - Start with `bun run dev:hmr:cef`.
 - Verify the CDP endpoint with `bun run cdp:check`.
-- Capture a live proof artifact with `bun run cdp:screenshot` (or `bun run cdp:smoke` to submit a test prompt first).
+- For interactive work: `playwright-cli open && playwright-cli tab-select 1` to get a stateful session.
+- For batch/CI: compose playwright-cli commands into bash scripts (see `/docs/playwright-cli-guide.md`).
+- See `/docs/playwright-cli-guide.md` for the full guide and troubleshooting.
 - Use CDP-aware tools to attach to the running embedded webview rather than opening `http://localhost:5174` in a standalone browser tab.
 
 ## Reliable Testing Practices

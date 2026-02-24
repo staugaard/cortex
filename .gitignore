@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 bun-debug.log*
 
+# playwright-cli output
+.playwright-cli/
+
 # editor and OS files
 .DS_Store
 Thumbs.db

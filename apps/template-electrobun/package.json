@@ -13,8 +13,7 @@
 		"start": "bun run dev",
 		"typecheck": "tsc -p tsconfig.json --pretty false",
 		"cdp:check": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/version",
-		"cdp:targets": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/list",
-		"cdp:screenshot": "node scripts/cdp-screenshot.mjs"
+		"cdp:targets": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/list"
 	},
 	"dependencies": {
 		"class-variance-authority": "^0.7.1",
@@ -33,7 +32,6 @@
 		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react": "^5.1.4",
 		"concurrently": "^9.2.1",
-		"playwright-core": "^1.58.2",
 		"tailwindcss": "^4.2.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1"
