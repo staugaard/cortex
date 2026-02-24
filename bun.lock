@@ -53,6 +53,32 @@
         "vite": "^7.3.1",
       },
     },
+    "apps/template-electrobun": {
+      "name": "template-electrobun",
+      "version": "0.0.1",
+      "dependencies": {
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "electrobun": "1.13.1",
+        "lucide-react": "^0.575.0",
+        "radix-ui": "^1.4.3",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "tailwind-merge": "^3.5.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.2.0",
+        "@types/bun": "latest",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^5.1.4",
+        "concurrently": "^9.2.1",
+        "playwright-core": "^1.58.2",
+        "tailwindcss": "^4.2.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.3.1",
+      },
+    },
     "packages/chat-core": {
       "name": "@cortex/chat-core",
       "version": "0.0.0",
@@ -1237,6 +1263,8 @@
     "tapable": ["tapable@2.3.0", "", {}, "sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg=="],
 
     "tar-stream": ["tar-stream@3.1.7", "", { "dependencies": { "b4a": "^1.6.4", "fast-fifo": "^1.2.0", "streamx": "^2.15.0" } }, "sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ=="],
+
+    "template-electrobun": ["template-electrobun@workspace:apps/template-electrobun"],
 
     "text-decoder": ["text-decoder@1.2.7", "", { "dependencies": { "b4a": "^1.6.4" } }, "sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ=="],
 
