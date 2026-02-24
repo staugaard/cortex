@@ -13,6 +13,8 @@ const requiredElementFiles = [
 	"snippet.tsx",
 	"code-block.tsx",
 	"shimmer.tsx",
+	"agent.tsx",
+	"task.tsx",
 ];
 
 const requiredImports = [
@@ -34,6 +36,8 @@ const requiredDocMarkers = [
 	"### Reasoning",
 	"### Tool",
 	"### Confirmation",
+	"### Agent",
+	"### Task",
 ];
 
 const failures = [];
@@ -51,6 +55,11 @@ for (const file of requiredElementFiles) {
 
 const appTsxPath = resolve(appRoot, "src/mainview/App.tsx");
 const appTsx = readFileSync(appTsxPath, "utf8");
+const activityItemPath = resolve(
+	appRoot,
+	"src/mainview/components/AgentActivityItem.tsx",
+);
+const activityItemTsx = readFileSync(activityItemPath, "utf8");
 
 for (const importPath of requiredImports) {
 	if (!appTsx.includes(importPath)) {
@@ -66,6 +75,19 @@ const forbiddenPatterns = [
 for (const pattern of forbiddenPatterns) {
 	if (pattern.test(appTsx)) {
 		failures.push(`App.tsx still includes ad-hoc renderer matching ${pattern}`);
+	}
+}
+
+const requiredActivityImports = [
+	"@/components/ai-elements/agent",
+	"@/components/ai-elements/task",
+];
+
+for (const importPath of requiredActivityImports) {
+	if (!activityItemTsx.includes(importPath)) {
+		failures.push(
+			`AgentActivityItem.tsx missing required Elements import: ${importPath}`,
+		);
 	}
 }
 

@@ -51,7 +51,7 @@ Status legend:
 
 | Component | Status | Notes |
 |---|---|---|
-| Agent | MUST-WHEN-FEATURE | Use for agent config/presentation surfaces. |
+| Agent | MUST-NOW | Canonical wrapper for subagent run surfaces. |
 | Artifact | MUST-WHEN-FEATURE | Use for rich generated artifact output. |
 | Attachments | MUST-WHEN-FEATURE | Adopt when file upload in composer is enabled. |
 | Audio Player | MUST-WHEN-FEATURE | Adopt with TTS/audio output. |
@@ -91,7 +91,7 @@ Status legend:
 | Speech Input | MUST-WHEN-FEATURE | Voice prompt capture. |
 | Stack Trace | DEFER | Error detail output. |
 | Suggestion | MUST-WHEN-FEATURE | Suggested prompt chips. |
-| Task | MUST-WHEN-FEATURE | Agent/task progress list. |
+| Task | MUST-NOW | Collapsed-by-default subagent activity timeline shell. |
 | Terminal | MUST-WHEN-FEATURE | Streamed terminal output. |
 | Test Results | DEFER | Test tool output display. |
 | Tool | MUST-NOW | Canonical tool invocation renderer. |
@@ -208,6 +208,30 @@ Status legend:
 - Explicitly out of scope in this app: full skeleton screen framework.
 - Verification steps:
   - Manual: trigger streaming tool input and verify shimmer appears.
+  - Type/Test: `bun run typecheck:chat`.
+
+### Agent
+- Official docs URL: https://elements.ai-sdk.dev/components/agent
+- Intended use in app: subagent run container for expanded activity details.
+- Required props/state model: lightweight `Agent` wrapper with `AgentContent` sections.
+- Streaming behavior requirements: stable layout while events append.
+- Accessibility requirements: readable section labels and semantic text structure.
+- Composition pattern from docs: `Agent` + `AgentContent` as the base surface.
+- Explicitly out of scope in this app: schema/tool catalog display in agent card.
+- Verification steps:
+  - Manual: delegated math prompt shows one expandable agent item with prompt/activity/output.
+  - Type/Test: `bun run typecheck:chat`.
+
+### Task
+- Official docs URL: https://elements.ai-sdk.dev/components/task
+- Intended use in app: collapsed-by-default trigger/content for subagent activity.
+- Required props/state model: `Task` + `TaskTrigger` + `TaskContent` + `TaskItem`.
+- Streaming behavior requirements: item remains stable while status/events update.
+- Accessibility requirements: trigger remains keyboard-toggleable.
+- Composition pattern from docs: collapsible task shell with timeline items in content.
+- Explicitly out of scope in this app: nested multi-task execution trees.
+- Verification steps:
+  - Manual: expand/collapse agent activity and verify activity rows and markdown output.
   - Type/Test: `bun run typecheck:chat`.
 
 ## Vendor + Sync Policy
