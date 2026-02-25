@@ -6,6 +6,8 @@
   },
   "include": [
     "src/rpc/**/*.ts",
+    "src/react/**/*.ts",
+    "src/react/**/*.tsx",
     "src/transport-web/**/*.ts",
     "src/internal/runtime-tags.ts",
     "tests/typecheck/web-entry.ts"

@@ -5,6 +5,7 @@ Shared chat infrastructure for Cortex desktop apps.
 ## Subpath Exports
 
 - `@cortex/chat-core/rpc`
+- `@cortex/chat-core/react`
 - `@cortex/chat-core/transport-web`
 - `@cortex/chat-core/transport-bun`
 - `@cortex/chat-core/persistence`
@@ -12,9 +13,36 @@ Shared chat infrastructure for Cortex desktop apps.
 
 ## Runtime Boundary
 
-- `transport-web` is webview-safe.
+- `react` and `transport-web` are webview-safe.
 - `transport-bun`, `persistence`, and `agents` are Bun/runtime-side.
 - `rpc` is runtime-agnostic.
+
+## React API
+
+`@cortex/chat-core/react` provides:
+
+- `ChatConversation` — default Elements-based conversation timeline + composer
+- `useChatSessions` — headless session lifecycle hook with tmp-id remap semantics
+- renderer extension hooks for app-specific UI parts:
+  - `renderDataPart`
+  - `renderToolPart`
+  - `renderUnsupportedPart`
+  - `renderComposer`
+
+Example:
+
+```tsx
+import { ChatConversation } from "@cortex/chat-core/react";
+```
+
+## Tailwind Host Contract
+
+Phase 1 does not ship a package CSS file. Host apps are expected to include source paths for `chat-core/react` components in Tailwind scanning.
+
+At minimum, include:
+
+- `packages/chat-core/src/react/**/*.{ts,tsx}`
+- `node_modules/streamdown/dist/*.js` (when using shared markdown renderers)
 
 ## Agents Utilities
 
@@ -56,3 +84,15 @@ When modifying `packages/chat-core`:
 ```bash
 bun run --cwd packages/chat-core test
 ```
+
+## React Test Stack
+
+`@cortex/chat-core/react` tests run with:
+
+- `bun test`
+- `@testing-library/react`
+- `jsdom` via preload (`tests/react/setup-dom.ts`)
+
+Legacy React renderer package usage is intentionally blocked by:
+
+- `bun run --cwd packages/chat-core check:no-legacy-renderer`

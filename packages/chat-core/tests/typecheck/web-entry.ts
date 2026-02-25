@@ -1,6 +1,15 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 import { createElectrobunChatTransport } from "../../src/transport-web";
 import type { ChatElectrobunSchema } from "../../src/rpc";
+import {
+	ChatConversation,
+	createTemporarySessionId,
+	renderMessagePart,
+	type ChatSessionStore,
+	type ChatSessionSummary,
+	type ChatToolPart,
+	useChatSessions,
+} from "../../src/react";
 
 const schemaTypecheck: ChatElectrobunSchema<UIMessage, UIMessageChunk> = {
 	bun: {
@@ -54,3 +63,39 @@ const transport: ChatTransport<UIMessage> = createElectrobunChatTransport({
 });
 
 void transport;
+
+const summaryTypecheck: ChatSessionSummary = {
+	sessionId: "s1",
+	title: "Session",
+	createdAt: 0,
+	updatedAt: 0,
+};
+void summaryTypecheck;
+
+const storeTypecheck: ChatSessionStore<UIMessage> = {
+	listSessions: async () => ({ sessions: [] }),
+	getSession: async () => ({ session: null }),
+	saveSession: async () => ({ sessionId: "s1", savedAt: Date.now() }),
+	subscribeSessionUpdated: () => () => {},
+};
+void storeTypecheck;
+
+void createTemporarySessionId();
+const useChatSessionsTypecheck = useChatSessions<UIMessage>;
+void useChatSessionsTypecheck;
+
+const chatConversationTypecheck = ChatConversation<UIMessage>;
+void chatConversationTypecheck;
+
+const renderMessagePartTypecheck = renderMessagePart<UIMessage>;
+void renderMessagePartTypecheck;
+
+const toolPartTypecheck: ChatToolPart = {
+	type: "dynamic-tool",
+	toolName: "demo",
+	toolCallId: "call-1",
+	state: "output-available",
+	input: {},
+	output: {},
+};
+void toolPartTypecheck;
