@@ -22,6 +22,16 @@ export function createListingRepository<T extends BaseListing>(
 ): ListingRepository<T> {
 	const baseKeySet = new Set<string>(baseListingKeys);
 
+	function assertValidUserRating(userRating: number): void {
+		if (
+			!Number.isInteger(userRating) ||
+			userRating < 1 ||
+			userRating > 5
+		) {
+			throw new Error("userRating must be an integer between 1 and 5");
+		}
+	}
+
 	function splitMetadata(listing: T): { base: Omit<BaseListing, "images">; metadata: Record<string, unknown>; images: string[] } {
 		const metadata: Record<string, unknown> = {};
 		const base: Record<string, unknown> = {};
@@ -133,6 +143,7 @@ export function createListingRepository<T extends BaseListing>(
 		},
 
 		updateRating(id: string, userRating: number, userNote?: string): T | null {
+			assertValidUserRating(userRating);
 			const now = new Date().toISOString();
 			db.update(listings)
 				.set({

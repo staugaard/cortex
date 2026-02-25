@@ -78,6 +78,36 @@ export function createListingHunter<T extends BaseListing>(
 
 	const rate = options.rate ?? (rateListing as RateFn<T>);
 	const calibrate = options.calibrate ?? synthesizeCalibration;
+	let calibrationInFlight: Promise<void> | null = null;
+
+	const runCalibrationInternal = async () => {
+		const overrides = repos.ratingOverrides.getAll();
+		if (overrides.length === 0) {
+			return;
+		}
+
+		const calibrationDoc = repos.documents.get("calibration_log");
+		const preferenceDoc = repos.documents.get("preference_profile");
+
+		const synthesized = await calibrate(
+			overrides,
+			calibrationDoc?.content ?? null,
+			preferenceDoc?.content ?? null,
+		);
+
+		repos.documents.set("calibration_log", synthesized);
+	};
+
+	const ensureCalibrationRunning = (): Promise<void> => {
+		if (calibrationInFlight) {
+			return calibrationInFlight;
+		}
+
+		calibrationInFlight = runCalibrationInternal().finally(() => {
+			calibrationInFlight = null;
+		});
+		return calibrationInFlight;
+	};
 
 	const hunter: ListingHunter<T> = {
 		...repos,
@@ -119,37 +149,26 @@ export function createListingHunter<T extends BaseListing>(
 				});
 
 				const calibrationDoc = repos.documents.get("calibration_log");
-				const overrideCount = repos.ratingOverrides.countSince(
-					calibrationDoc?.updatedAt ?? null,
-				);
+					const overrideCount = repos.ratingOverrides.countSince(
+						calibrationDoc?.updatedAt ?? null,
+					);
 
-				if (overrideCount >= CALIBRATION_THRESHOLD) {
-					calibrationTriggered = true;
-					void hunter.runCalibration().catch((err: unknown) => {
-						console.error("Calibration failed", err);
-					});
+					if (
+						overrideCount >= CALIBRATION_THRESHOLD &&
+						calibrationInFlight === null
+					) {
+						calibrationTriggered = true;
+						void ensureCalibrationRunning().catch((err: unknown) => {
+							console.error("Calibration failed", err);
+						});
+					}
 				}
-			}
 
-			return { listing, calibrationTriggered };
-		},
-		async runCalibration() {
-			const overrides = repos.ratingOverrides.getAll();
-			if (overrides.length === 0) {
-				return;
-			}
-
-			const calibrationDoc = repos.documents.get("calibration_log");
-			const preferenceDoc = repos.documents.get("preference_profile");
-
-			const synthesized = await calibrate(
-				overrides,
-				calibrationDoc?.content ?? null,
-				preferenceDoc?.content ?? null,
-			);
-
-			repos.documents.set("calibration_log", synthesized);
-		},
+				return { listing, calibrationTriggered };
+			},
+			async runCalibration() {
+				await ensureCalibrationRunning();
+			},
 		close() {
 			sqlite.close();
 		},

@@ -201,6 +201,33 @@ describe("Pipeline", () => {
 			expect(stored.total).toBe(2);
 		} finally {
 			cleanup();
+			}
+		});
+
+	test("counts duplicate rows from unique constraint collisions inside one batch", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			const listings = [
+				makeListing({ id: "a", sourceId: "dup-1", sourceName: "test" }),
+				makeListing({ id: "b", sourceId: "dup-1", sourceName: "test" }),
+			];
+
+			const result = await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover(listings),
+				rate: createMockRate(),
+			});
+
+			expect(result.stats.discovered).toBe(2);
+			expect(result.stats.new).toBe(1);
+			expect(result.stats.duplicates).toBe(1);
+		} finally {
+			cleanup();
 		}
 	});
 
@@ -389,6 +416,39 @@ describe("Pipeline", () => {
 			expect(stored).not.toBeNull();
 			expect(stored!.aiRating).toBeNull();
 			expect(stored!.aiRatingReason).toBeNull();
+		} finally {
+			cleanup();
+			}
+		});
+
+	test("fails the pipeline on non-duplicate insert errors", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			const listing = makeListing({ sourceId: "insert-fail-1" });
+			const failingListings = {
+				...hunter.listings,
+				insert: () => {
+					throw new Error("Disk I/O error");
+				},
+			};
+
+			await expect(
+				runPipeline({
+					schema: rentalSchema,
+					sourceTools: {},
+					sourceName: "test",
+					listings: failingListings,
+					pipelineRuns: hunter.pipelineRuns,
+					documents: hunter.documents,
+					discover: createMockDiscover([listing]),
+					rate: createMockRate(),
+				}),
+			).rejects.toThrow("Disk I/O error");
+
+			const latest = hunter.pipelineRuns.getLatest();
+			expect(latest).not.toBeNull();
+			expect(latest!.status).toBe("failed");
+			expect(latest!.error).toBe("Disk I/O error");
 		} finally {
 			cleanup();
 		}

@@ -103,6 +103,24 @@ describe("ListingHunter calibration behavior", () => {
 		}
 	});
 
+	test("rejects invalid user ratings", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			hunter.listings.insert(makeListing("listing-1", 3));
+
+			await expect(hunter.rateListing("listing-1", 9)).rejects.toThrow(
+				"userRating must be an integer between 1 and 5",
+			);
+
+			const listing = hunter.listings.getById("listing-1");
+			expect(listing).not.toBeNull();
+			expect(listing!.userRating).toBeNull();
+			expect(hunter.ratingOverrides.getByListingId("listing-1")).toEqual([]);
+		} finally {
+			cleanup();
+		}
+	});
+
 	test("triggers calibration after 5 overrides", async () => {
 		let calibrationRuns = 0;
 		const calibrate: CalibrateFn = async () => {
@@ -153,6 +171,50 @@ describe("ListingHunter calibration behavior", () => {
 
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(calibrationRuns).toBe(0);
+		} finally {
+			cleanup();
+			}
+		});
+
+	test("does not start a second calibration while one is already running", async () => {
+		let calibrationRuns = 0;
+		let releaseCalibration: (() => void) | null = null;
+
+		const calibrate: CalibrateFn = async () => {
+			calibrationRuns++;
+			await new Promise<void>((resolve) => {
+				releaseCalibration = resolve;
+			});
+			return "Updated calibration";
+		};
+
+		const { hunter, cleanup } = createTestHunter(calibrate);
+		try {
+			for (let i = 1; i <= 6; i++) {
+				hunter.listings.insert(makeListing(`listing-${i}`, 2));
+			}
+
+			for (let i = 1; i <= 4; i++) {
+				const result = await hunter.rateListing(`listing-${i}`, 5);
+				expect(result.calibrationTriggered).toBe(false);
+			}
+
+			const fifth = await hunter.rateListing("listing-5", 5);
+			expect(fifth.calibrationTriggered).toBe(true);
+			await waitFor(() => calibrationRuns === 1);
+
+			const sixth = await hunter.rateListing("listing-6", 5);
+			expect(sixth.calibrationTriggered).toBe(false);
+			expect(calibrationRuns).toBe(1);
+
+			if (!releaseCalibration) {
+				throw new Error("Expected calibration run to be in progress");
+			}
+			releaseCalibration();
+
+			await waitFor(
+				() => hunter.documents.get("calibration_log")?.content === "Updated calibration",
+			);
 		} finally {
 			cleanup();
 		}

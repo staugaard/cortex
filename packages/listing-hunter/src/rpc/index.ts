@@ -24,7 +24,7 @@ export type ListingHunterBunRequests<T extends z.ZodObject<z.ZodRawShape>> = {
 		response: z.infer<T>;
 	};
 	rateListing: {
-		params: { id: string; rating: number; note?: string };
+		params: { id: string; rating: 1 | 2 | 3 | 4 | 5; note?: string };
 		response: { listing: z.infer<T> };
 	};
 	archiveListing: {

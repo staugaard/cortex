@@ -33,6 +33,18 @@ export interface PipelineRunResult {
 	stats: PipelineRunStats;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	const message = error.message.toLowerCase();
+	return (
+		message.includes("sqlite_constraint_unique") ||
+		message.includes("unique constraint failed")
+	);
+}
+
 // ─── Pipeline ───────────────────────────────────────────────────────────────
 
 export async function runPipeline<T extends BaseListing>(
@@ -99,15 +111,20 @@ export async function runPipeline<T extends BaseListing>(
 
 		// 5. Store — insert new listings
 		let inserted = 0;
-		for (const listing of newListings) {
-			try {
-				config.listings.insert(listing);
-				inserted++;
-			} catch {
-				// Unique constraint violation from concurrent/duplicate sourceIds in batch
-				duplicates++;
+			for (const listing of newListings) {
+				try {
+					config.listings.insert(listing);
+					inserted++;
+				} catch (err) {
+					if (isUniqueConstraintError(err)) {
+						// Expected when the same listing appears multiple times in a batch
+						// or is inserted concurrently by another pipeline run.
+						duplicates++;
+						continue;
+					}
+					throw err;
+				}
 			}
-		}
 
 		// 6. Complete pipeline run
 		const stats: PipelineRunStats = {
