@@ -27,12 +27,18 @@ import {
 } from "./rating-override-repository.js";
 import { runPipeline, type PipelineRunResult } from "./pipeline.js";
 import type { SourceTools } from "./discovery-agent.js";
+import { rateListing, type RateFn } from "./rating-agent.js";
+import { synthesizeCalibration, type CalibrateFn } from "./calibration-agent.js";
+
+const CALIBRATION_THRESHOLD = 5;
 
 export interface ListingHunterOptions<T extends BaseListing> {
 	schema: z.ZodType<T>;
 	dbPath: string;
 	sourceTools?: SourceTools;
 	sourceName?: string;
+	rate?: RateFn<T>;
+	calibrate?: CalibrateFn;
 }
 
 export interface ListingHunter<T extends BaseListing> {
@@ -42,6 +48,12 @@ export interface ListingHunter<T extends BaseListing> {
 	pipelineRuns: PipelineRunRepository;
 	ratingOverrides: RatingOverrideRepository;
 	runPipeline(): Promise<PipelineRunResult>;
+	rateListing(
+		id: string,
+		userRating: number,
+		userNote?: string,
+	): Promise<{ listing: T; calibrationTriggered: boolean }>;
+	runCalibration(): Promise<void>;
 	close(): void;
 }
 
@@ -64,7 +76,10 @@ export function createListingHunter<T extends BaseListing>(
 		ratingOverrides: createRatingOverrideRepository(db),
 	};
 
-	return {
+	const rate = options.rate ?? (rateListing as RateFn<T>);
+	const calibrate = options.calibrate ?? synthesizeCalibration;
+
+	const hunter: ListingHunter<T> = {
 		...repos,
 		async runPipeline() {
 			if (!options.sourceTools || !options.sourceName) {
@@ -79,10 +94,66 @@ export function createListingHunter<T extends BaseListing>(
 				listings: repos.listings,
 				pipelineRuns: repos.pipelineRuns,
 				documents: repos.documents,
+				rate,
 			});
+		},
+		async rateListing(id, userRating, userNote) {
+			const existing = repos.listings.getById(id);
+			if (!existing) {
+				throw new Error(`Listing not found: ${id}`);
+			}
+
+			const listing = repos.listings.updateRating(id, userRating, userNote);
+			if (!listing) {
+				throw new Error(`Listing not found after rating update: ${id}`);
+			}
+
+			let calibrationTriggered = false;
+			if (existing.aiRating !== null && existing.aiRating !== userRating) {
+				repos.ratingOverrides.insert({
+					id: crypto.randomUUID(),
+					listingId: id,
+					aiRating: existing.aiRating,
+					userRating,
+					userNote: userNote ?? null,
+				});
+
+				const calibrationDoc = repos.documents.get("calibration_log");
+				const overrideCount = repos.ratingOverrides.countSince(
+					calibrationDoc?.updatedAt ?? null,
+				);
+
+				if (overrideCount >= CALIBRATION_THRESHOLD) {
+					calibrationTriggered = true;
+					void hunter.runCalibration().catch((err: unknown) => {
+						console.error("Calibration failed", err);
+					});
+				}
+			}
+
+			return { listing, calibrationTriggered };
+		},
+		async runCalibration() {
+			const overrides = repos.ratingOverrides.getAll();
+			if (overrides.length === 0) {
+				return;
+			}
+
+			const calibrationDoc = repos.documents.get("calibration_log");
+			const preferenceDoc = repos.documents.get("preference_profile");
+
+			const synthesized = await calibrate(
+				overrides,
+				calibrationDoc?.content ?? null,
+				preferenceDoc?.content ?? null,
+			);
+
+			repos.documents.set("calibration_log", synthesized);
 		},
 		close() {
 			sqlite.close();
 		},
 	};
+
+	return hunter;
 }

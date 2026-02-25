@@ -3,6 +3,7 @@ import type { BaseListing, PipelineRunStats } from "../types/index.js";
 import type { ListingRepository } from "./listing-repository.js";
 import type { PipelineRunRepository } from "./pipeline-run-repository.js";
 import type { DocumentRepository } from "./document-repository.js";
+import { rateListing, type RateFn } from "./rating-agent.js";
 import {
 	runDiscovery,
 	type SourceTools,
@@ -24,6 +25,7 @@ export interface PipelineConfig<T extends BaseListing> {
 	pipelineRuns: PipelineRunRepository;
 	documents: DocumentRepository;
 	discover?: DiscoverFn<T>;
+	rate?: RateFn<T>;
 }
 
 export interface PipelineRunResult {
@@ -72,7 +74,30 @@ export async function runPipeline<T extends BaseListing>(
 			}
 		}
 
-		// 4. Store — insert new listings (no rating in Phase 2)
+		// 4. Rate — score new listings before insert (non-fatal)
+		const calibrationDoc = config.documents.get("calibration_log");
+		const calibrationLog = calibrationDoc?.content ?? null;
+		const rate: RateFn<T> = config.rate ?? rateListing;
+
+		let rated = 0;
+		for (const listing of newListings) {
+			try {
+				const result = await rate(listing, preferenceProfile, calibrationLog);
+				if (result) {
+					listing.aiRating = result.rating;
+					listing.aiRatingReason = result.reason;
+					rated++;
+				}
+			} catch (err) {
+				console.error("Failed to rate listing", {
+					sourceName: listing.sourceName,
+					sourceId: listing.sourceId,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			}
+		}
+
+		// 5. Store — insert new listings
 		let inserted = 0;
 		for (const listing of newListings) {
 			try {
@@ -84,12 +109,12 @@ export async function runPipeline<T extends BaseListing>(
 			}
 		}
 
-		// 5. Complete pipeline run
+		// 6. Complete pipeline run
 		const stats: PipelineRunStats = {
 			discovered,
 			duplicates,
 			new: inserted,
-			rated: 0,
+			rated,
 		};
 
 		config.pipelineRuns.complete(runId, stats);

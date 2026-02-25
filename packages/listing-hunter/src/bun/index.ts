@@ -14,3 +14,5 @@ export { type PipelineRunRepository, type PipelineRunRecord } from "./pipeline-r
 export { type RatingOverrideRepository, type RatingOverrideRecord } from "./rating-override-repository.js";
 export { type SourceTools } from "./discovery-agent.js";
 export { type PipelineRunResult, type DiscoverFn } from "./pipeline.js";
+export { type RatingResult, type RateFn } from "./rating-agent.js";
+export { type CalibrateFn } from "./calibration-agent.js";

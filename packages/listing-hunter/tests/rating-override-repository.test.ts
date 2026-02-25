@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { z } from "zod";
 import { baseListingSchema } from "../src/types/index.js";
 import { createListingHunter } from "../src/bun/listing-hunter.js";
 import type { BaseListing } from "../src/types/index.js";
@@ -68,6 +67,67 @@ describe("RatingOverrideRepository", () => {
 		const { hunter, cleanup } = createTestHunter();
 		try {
 			expect(hunter.ratingOverrides.getByListingId("nonexistent")).toEqual([]);
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("getAll returns overrides ordered by createdAt desc", () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			hunter.listings.insert(makeListing("listing-1"));
+			hunter.listings.insert(makeListing("listing-2"));
+
+			hunter.ratingOverrides.insert({
+				id: "override-1",
+				listingId: "listing-1",
+				aiRating: 2,
+				userRating: 4,
+				userNote: "Better than predicted",
+			});
+			hunter.ratingOverrides.insert({
+				id: "override-2",
+				listingId: "listing-2",
+				aiRating: 4,
+				userRating: 2,
+				userNote: "Worse than predicted",
+			});
+
+			const all = hunter.ratingOverrides.getAll();
+			expect(all.length).toBe(2);
+			expect(all[0].createdAt >= all[1].createdAt).toBe(true);
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("countSince counts only overrides after the provided timestamp", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			hunter.listings.insert(makeListing("listing-1"));
+			hunter.listings.insert(makeListing("listing-2"));
+
+			hunter.ratingOverrides.insert({
+				id: "override-1",
+				listingId: "listing-1",
+				aiRating: 2,
+				userRating: 4,
+				userNote: null,
+			});
+
+			const marker = new Date().toISOString();
+			await new Promise((resolve) => setTimeout(resolve, 20));
+
+			hunter.ratingOverrides.insert({
+				id: "override-2",
+				listingId: "listing-2",
+				aiRating: 1,
+				userRating: 5,
+				userNote: null,
+			});
+
+			expect(hunter.ratingOverrides.countSince(null)).toBe(2);
+			expect(hunter.ratingOverrides.countSince(marker)).toBe(1);
 		} finally {
 			cleanup();
 		}

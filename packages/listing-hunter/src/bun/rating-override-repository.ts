@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, gt, sql } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { ratingOverrides } from "./schema.js";
 
@@ -14,6 +14,8 @@ export interface RatingOverrideRecord {
 export interface RatingOverrideRepository {
 	insert(override: Omit<RatingOverrideRecord, "createdAt">): void;
 	getByListingId(listingId: string): RatingOverrideRecord[];
+	getAll(): RatingOverrideRecord[];
+	countSince(date: string | null): number;
 }
 
 export function createRatingOverrideRepository(
@@ -41,6 +43,31 @@ export function createRatingOverrideRepository(
 				.where(eq(ratingOverrides.listingId, listingId))
 				.orderBy(desc(ratingOverrides.createdAt))
 				.all();
+		},
+
+		getAll(): RatingOverrideRecord[] {
+			return db
+				.select()
+				.from(ratingOverrides)
+				.orderBy(desc(ratingOverrides.createdAt))
+				.all();
+		},
+
+		countSince(date: string | null): number {
+			if (!date) {
+				const rows = db
+					.select({ count: sql<number>`count(*)` })
+					.from(ratingOverrides)
+					.all();
+				return rows[0]?.count ?? 0;
+			}
+
+			const rows = db
+				.select({ count: sql<number>`count(*)` })
+				.from(ratingOverrides)
+				.where(gt(ratingOverrides.createdAt, date))
+				.all();
+			return rows[0]?.count ?? 0;
 		},
 	};
 }

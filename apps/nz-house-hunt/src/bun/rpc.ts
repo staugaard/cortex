@@ -18,13 +18,12 @@ export function createAppRpc(hunter: ListingHunter<RentalListing>) {
 					if (!listing) throw new Error(`Listing not found: ${params.id}`);
 					return listing;
 				},
-				rateListing: (params) => {
-					const listing = hunter.listings.updateRating(
+				rateListing: async (params) => {
+					const { listing } = await hunter.rateListing(
 						params.id,
 						params.rating,
 						params.note,
 					);
-					if (!listing) throw new Error(`Listing not found: ${params.id}`);
 					return { listing };
 				},
 				archiveListing: (params) => {
