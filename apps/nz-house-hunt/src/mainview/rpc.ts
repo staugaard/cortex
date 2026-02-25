@@ -2,13 +2,26 @@ import { Electroview } from "electrobun/view";
 import type { AppSchema } from "./types";
 
 const BRIDGE_KEY = "__appElectroview";
-const RPC_MAX_REQUEST_TIME_MS = 10_000;
+const RPC_MAX_REQUEST_TIME_MS = 120_000;
 
 export const appRpc = Electroview.defineRPC<AppSchema>({
 	maxRequestTime: RPC_MAX_REQUEST_TIME_MS,
 	handlers: {
 		requests: {},
-		messages: {},
+		messages: {
+			listingsUpdated: (payload) => {
+				console.log(`Pipeline found ${payload.newCount} new listings`);
+			},
+			pipelineStatus: (payload) => {
+				console.log(
+					`Pipeline ${payload.runId}: ${payload.status}`,
+					payload.stats,
+				);
+			},
+			documentsUpdated: (payload) => {
+				console.log(`Document updated: ${payload.type}`);
+			},
+		},
 	},
 });
 

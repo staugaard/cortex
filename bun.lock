@@ -57,6 +57,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@cortex/listing-hunter": "workspace:*",
+        "ai": "^6.0.97",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "electrobun": "1.13.1",
@@ -119,6 +120,8 @@
       "name": "@cortex/listing-hunter",
       "version": "0.0.0",
       "dependencies": {
+        "@ai-sdk/anthropic": "^3.0.46",
+        "ai": "^6.0.97",
         "drizzle-orm": "^0.44.2",
         "zod": "^3.25.7",
       },
