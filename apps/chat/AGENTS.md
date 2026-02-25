@@ -36,8 +36,8 @@ These instructions apply to `/Users/staugaard/Code/cortex/apps/chat`.
 - `ANTHROPIC_API_KEY` must be present in the Bun process environment to stream real responses.
 
 ## UI Rules
-- Chat UI is built with [AI SDK Elements](https://elements.ai-sdk.dev/) — shadcn/ui-based components installed via CLI into `src/mainview/components/ai-elements/` and `src/mainview/components/ui/`.
-- Markdown rendering for assistant/user text uses `MessageResponse` from `@/components/ai-elements/message` (which uses streamdown internally).
+- Chat conversation/session UI is consumed from `@cortex/chat-core/react`.
+- App shell components (`SessionRail`, `Toolbar`) stay app-owned.
 - Non-text message parts should be rendered explicitly (or clearly surfaced as typed placeholders) rather than silently ignored.
 - The `@/` path alias resolves to `src/mainview/` (configured in `vite.config.ts` and `tsconfig.json`).
 
@@ -72,7 +72,7 @@ playwright-cli (interactive, after `bun run dev:hmr:cef`):
 
 ## Reliable Testing Practices
 - Treat unscripted in-app verification as first-class; scripts are only optional accelerators.
-- After `New Chat`, wait for empty-state + Diagnostics provisional `tmp:` session before first send.
+- After `New Chat`, wait for empty-state + a provisional new entry in the session rail before first send.
 - Only send next user turn after submit control returns to `Submit` (not `Stop`).
 - Distinguish automation timing failures from product failures before changing code.
 - Validate async title upgrades by observing push-driven UI updates (`conversationUpdated`), not polling loops.

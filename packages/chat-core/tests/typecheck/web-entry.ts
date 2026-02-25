@@ -2,9 +2,13 @@ import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 import { createElectrobunChatTransport } from "../../src/transport-web";
 import type { ChatElectrobunSchema } from "../../src/rpc";
 import {
+	asAgentActivityData,
+	AgentActivityPart,
 	ChatConversation,
 	createTemporarySessionId,
 	renderMessagePart,
+	type AgentActivityData,
+	type AgentActivityEvent,
 	type ChatSessionStore,
 	type ChatSessionSummary,
 	type ChatToolPart,
@@ -99,3 +103,35 @@ const toolPartTypecheck: ChatToolPart = {
 	output: {},
 };
 void toolPartTypecheck;
+
+const eventTypecheck: AgentActivityEvent = {
+	id: "evt-1",
+	timestamp: Date.now(),
+	source: "manager",
+	type: "note",
+	message: "ok",
+};
+void eventTypecheck;
+
+const agentActivityTypecheck: AgentActivityData = {
+	activityId: "act-1",
+	workflow: "math-expert",
+	status: "running",
+	startedAt: Date.now(),
+	updatedAt: Date.now(),
+	counters: {
+		steps: 0,
+		toolCalls: 0,
+		completedRuns: 0,
+		cancelledRuns: 0,
+		failedRuns: 0,
+	},
+	events: [eventTypecheck],
+};
+void agentActivityTypecheck;
+
+const parsedActivityTypecheck = asAgentActivityData(agentActivityTypecheck);
+void parsedActivityTypecheck;
+
+const agentActivityPartTypecheck = AgentActivityPart;
+void agentActivityPartTypecheck;

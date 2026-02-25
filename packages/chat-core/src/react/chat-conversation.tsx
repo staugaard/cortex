@@ -48,6 +48,7 @@ export function ChatConversation<UI_MESSAGE extends UIMessage>({
 }: ChatConversationProps<UI_MESSAGE>) {
 	const [persistError, setPersistError] = useState<string | null>(null);
 	const externalSyncKeyRef = useRef<string>(messagesSyncKey(messages));
+	const chatIdRef = useRef<string | null>(null);
 
 	const {
 		messages: chatMessages,
@@ -97,6 +98,10 @@ export function ChatConversation<UI_MESSAGE extends UIMessage>({
 	}, [chatMessages, onMessagesChange]);
 
 	useEffect(() => {
+		if (chatIdRef.current === chatId && chatIdRef.current !== null) {
+			return;
+		}
+		chatIdRef.current = chatId;
 		externalSyncKeyRef.current = messagesSyncKey(messages);
 		setMessages(messages);
 	}, [chatId, messages, setMessages]);

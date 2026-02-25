@@ -111,9 +111,3 @@ export type ChatUITools = {
 export type ChatUIMessage = UIMessage<unknown, ChatDataParts, ChatUITools>;
 export type ChatUIChunk = UIMessageChunk<unknown, ChatDataParts>;
 export type AppChatSchema = ChatElectrobunSchema<ChatUIMessage, ChatUIChunk>;
-
-export const TEMP_SESSION_PREFIX = "tmp:";
-
-export function createTemporarySessionId(): string {
-	return `${TEMP_SESSION_PREFIX}${crypto.randomUUID()}`;
-}

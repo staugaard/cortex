@@ -23,6 +23,7 @@ Shared chat infrastructure for Cortex desktop apps.
 
 - `ChatConversation` — default Elements-based conversation timeline + composer
 - `useChatSessions` — headless session lifecycle hook with tmp-id remap semantics
+- default `data-agentActivity` renderer support for in-chat agent run activity
 - renderer extension hooks for app-specific UI parts:
   - `renderDataPart`
   - `renderToolPart`

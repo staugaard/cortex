@@ -246,8 +246,10 @@ Contract:
 
 ### Phase 2: Kitchen-Sink Adoption
 
-- Migrate `apps/chat` to consume shared hook/component.
-- Keep app shell components (`SessionRail`, `DiagnosticsPanel`, `Toolbar`) local.
+- Directly migrate `apps/chat` to consume shared hook/component (no feature flag/parallel route in this phase).
+- Keep app shell components (`SessionRail`, `Toolbar`) local.
+- Remove app-local diagnostics and error toast shell for this phase, using shared conversation error UI.
+- Add default `data-agentActivity` rendering in `@cortex/chat-core/react`.
 - Verify behavior parity: streaming, cancel, approvals, save/load, remap, conversationUpdated.
 
 ### Phase 3: Listing Hunter First Product Use
@@ -297,9 +299,9 @@ When modifying `packages/chat-core`:
 
 ## Migration Strategy
 
-- Do not delete app-local UI first.
-- Introduce shared UI behind a feature flag or parallel route in `apps/chat`.
-- Compare behavior and only remove duplicated app logic after parity is confirmed.
+- Phase 2 uses direct cutover in `apps/chat` after shared API/renderer parity is implemented.
+- Remove app-local duplicated conversation/session orchestration and vendored Elements/UI trees in the same change.
+- Compare behavior against runbook checks and preserve persistence/remap/push-update semantics.
 - Keep API additive and small until second consumer (`listing-hunter`) is stable.
 
 ## Risks and Mitigations
@@ -325,7 +327,8 @@ When modifying `packages/chat-core`:
 
 ## Open Questions
 
-- Should `@cortex/chat-core/react` ship with default CSS or stay fully headless with class hooks?
-- Do we include a default session list component, or keep only headless session state + conversation view?
-- How opinionated should the default tool renderer be for advanced tool UIs?
-- Should attachment UX be included in v1 or deferred?
+- Should `@cortex/chat-core/react` ship with default CSS or stay fully headless with class hooks? (deferred)
+- Do we include a default session list component, or keep only headless session state + conversation view? (deferred)
+- How opinionated should the default tool renderer be for advanced tool UIs? (deferred)
+- Should attachment UX be included in v1 or deferred? (deferred)
+- `data-agentActivity` default rendering ownership for Phase 2 is locked to `@cortex/chat-core/react`.

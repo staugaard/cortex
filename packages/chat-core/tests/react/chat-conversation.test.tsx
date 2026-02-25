@@ -155,4 +155,65 @@ describe("ChatConversation", () => {
 			approved: true,
 		});
 	});
+
+	test("renders default agent activity part for data-agentActivity messages", async () => {
+		useChatState = {
+			messages: [
+				{
+					id: "m-activity",
+					role: "assistant",
+					parts: [
+						{
+							type: "data-agentActivity",
+							id: "act-1",
+							data: {
+								activityId: "act-1",
+								workflow: "math-expert",
+								status: "completed",
+								prompt: "Solve 17 * 9",
+								output: "153",
+								startedAt: Date.now() - 500,
+								updatedAt: Date.now(),
+								counters: {
+									steps: 1,
+									toolCalls: 1,
+									completedRuns: 1,
+									cancelledRuns: 0,
+									failedRuns: 0,
+								},
+								events: [
+									{
+										id: "evt-1",
+										timestamp: Date.now(),
+										source: "manager",
+										type: "tool-call-finish",
+										toolName: "solve_arithmetic",
+									},
+								],
+							},
+						},
+					],
+				} as unknown as UIMessage,
+			],
+			sendMessage: () => {},
+			setMessages: () => {},
+			status: "ready",
+			error: undefined,
+			clearError: () => {},
+			stop: () => {},
+			addToolApprovalResponse: async () => {},
+		};
+
+		const view = render(
+			<ChatConversation
+				chatId="chat-4"
+				transport={noopTransport}
+				messages={[]}
+				onMessagesChange={() => {}}
+			/>,
+		);
+
+		expect(await view.findByText("Agent")).toBeTruthy();
+		expect(view.getByText("completed")).toBeTruthy();
+	});
 });

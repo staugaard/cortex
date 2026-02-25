@@ -6,17 +6,62 @@ import {
 	MessageSquare,
 	Wrench,
 } from "lucide-react";
-import { Agent, AgentContent } from "@/components/ai-elements/agent";
-import { CodeBlock } from "@/components/ai-elements/code-block";
-import { MessageResponse } from "@/components/ai-elements/message";
+import { Agent, AgentContent } from "./components/ai-elements/agent";
+import { CodeBlock } from "./components/ai-elements/code-block";
+import { MessageResponse } from "./components/ai-elements/message";
 import {
 	Task,
 	TaskContent,
 	TaskItem,
 	TaskItemFile,
 	TaskTrigger,
-} from "@/components/ai-elements/task";
-import type { AgentActivityData, AgentActivityEvent } from "../chat-types";
+} from "./components/ai-elements/task";
+import type { AgentActivityData, AgentActivityEvent, AgentActivityStatus } from "./types";
+
+const AGENT_ACTIVITY_STATUSES = new Set<AgentActivityStatus>([
+	"running",
+	"completed",
+	"cancelled",
+	"error",
+]);
+
+const AGENT_ACTIVITY_EVENT_TYPES = new Set<AgentActivityEvent["type"]>([
+	"start",
+	"step-start",
+	"tool-call-start",
+	"tool-call-finish",
+	"step-finish",
+	"finish",
+	"cancelled",
+	"error",
+	"note",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function asString(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function asNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asOptionalNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value)
+		? value
+		: undefined;
+}
+
+function asOptionalBoolean(value: unknown): boolean | undefined {
+	return typeof value === "boolean" ? value : undefined;
+}
 
 function toSingleLine(value: string): string {
 	return value.replace(/\s+/g, " ").trim();
@@ -73,7 +118,124 @@ function formatPayload(payload: unknown): string {
 	}
 }
 
-export function AgentActivityItem({ activity }: { activity: AgentActivityData }) {
+function asAgentActivityEvent(value: unknown): AgentActivityEvent | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const id = asString(value.id);
+	const timestamp = asNumber(value.timestamp);
+	const source = asString(value.source);
+	const type = asString(value.type);
+	if (
+		id === null ||
+		timestamp === null ||
+		source === null ||
+		type === null ||
+		!AGENT_ACTIVITY_EVENT_TYPES.has(type as AgentActivityEvent["type"])
+	) {
+		return null;
+	}
+
+	return {
+		id,
+		timestamp,
+		source,
+		type: type as AgentActivityEvent["type"],
+		stepNumber: asOptionalNumber(value.stepNumber),
+		toolCallId: asOptionalString(value.toolCallId),
+		toolName: asOptionalString(value.toolName),
+		input: value.input,
+		output: value.output,
+		success: asOptionalBoolean(value.success),
+		durationMs: asOptionalNumber(value.durationMs),
+		error: asOptionalString(value.error),
+		message: asOptionalString(value.message),
+	};
+}
+
+function asAgentActivityCounters(
+	value: unknown,
+): AgentActivityData["counters"] | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const steps = asNumber(value.steps);
+	const toolCalls = asNumber(value.toolCalls);
+	const completedRuns = asNumber(value.completedRuns);
+	const cancelledRuns = asNumber(value.cancelledRuns);
+	const failedRuns = asNumber(value.failedRuns);
+
+	if (
+		steps === null ||
+		toolCalls === null ||
+		completedRuns === null ||
+		cancelledRuns === null ||
+		failedRuns === null
+	) {
+		return null;
+	}
+
+	return {
+		steps,
+		toolCalls,
+		completedRuns,
+		cancelledRuns,
+		failedRuns,
+	};
+}
+
+export function asAgentActivityData(value: unknown): AgentActivityData | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const activityId = asString(value.activityId);
+	const workflow = asString(value.workflow);
+	const status = asString(value.status);
+	const startedAt = asNumber(value.startedAt);
+	const updatedAt = asNumber(value.updatedAt);
+	const counters = asAgentActivityCounters(value.counters);
+
+	if (
+		activityId === null ||
+		workflow === null ||
+		status === null ||
+		!AGENT_ACTIVITY_STATUSES.has(status as AgentActivityStatus) ||
+		startedAt === null ||
+		updatedAt === null ||
+		counters === null
+	) {
+		return null;
+	}
+
+	const rawEvents = Array.isArray(value.events) ? value.events : null;
+	if (rawEvents === null) {
+		return null;
+	}
+	const events = rawEvents
+		.map((event) => asAgentActivityEvent(event))
+		.filter((event): event is AgentActivityEvent => event !== null);
+	if (events.length !== rawEvents.length) {
+		return null;
+	}
+
+	return {
+		activityId,
+		workflow,
+		status: status as AgentActivityStatus,
+		prompt: asOptionalString(value.prompt),
+		output: asOptionalString(value.output),
+		startedAt,
+		updatedAt,
+		finishedAt: asOptionalNumber(value.finishedAt),
+		counters,
+		events,
+	};
+}
+
+export function AgentActivityPart({ activity }: { activity: AgentActivityData }) {
 	const promptPreview = previewPrompt(activity.prompt);
 	const visibleEvents = activity.events.filter((event) => {
 		switch (event.type) {

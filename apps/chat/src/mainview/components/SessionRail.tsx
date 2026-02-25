@@ -1,14 +1,14 @@
-import type { ConversationSummary } from "@cortex/chat-core/rpc";
+import type { ChatSessionSummary } from "@cortex/chat-core/react";
 
 type SessionRailProps = {
-	sessions: ConversationSummary[];
+	sessions: ChatSessionSummary[];
 	activeSessionId: string;
 	onNewSession: () => void;
 	onSelectSession: (sessionId: string) => void;
 	disabled?: boolean;
 };
 
-function formatTitle(session: ConversationSummary): string {
+function formatTitle(session: ChatSessionSummary): string {
 	return session.title?.trim() || "New Conversation";
 }
 

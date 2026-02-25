@@ -51,6 +51,58 @@ export interface UseChatSessionsResult<UI_MESSAGE> {
 	persistActiveSession: () => Promise<string>;
 }
 
+export type AgentActivityStatus =
+	| "running"
+	| "completed"
+	| "cancelled"
+	| "error";
+
+export type AgentActivityWorkflow = string;
+
+export interface AgentActivityEvent {
+	id: string;
+	timestamp: number;
+	source: string;
+	type:
+		| "start"
+		| "step-start"
+		| "tool-call-start"
+		| "tool-call-finish"
+		| "step-finish"
+		| "finish"
+		| "cancelled"
+		| "error"
+		| "note";
+	stepNumber?: number;
+	toolCallId?: string;
+	toolName?: string;
+	input?: unknown;
+	output?: unknown;
+	success?: boolean;
+	durationMs?: number;
+	error?: string;
+	message?: string;
+}
+
+export interface AgentActivityData {
+	activityId: string;
+	workflow: AgentActivityWorkflow;
+	status: AgentActivityStatus;
+	prompt?: string;
+	output?: string;
+	startedAt: number;
+	updatedAt: number;
+	finishedAt?: number;
+	counters: {
+		steps: number;
+		toolCalls: number;
+		completedRuns: number;
+		cancelledRuns: number;
+		failedRuns: number;
+	};
+	events: AgentActivityEvent[];
+}
+
 export type ChatToolPart = DynamicToolUIPart | ToolUIPart<any>;
 
 export type ChatDataPartRenderer<UI_MESSAGE extends UIMessage> = (input: {

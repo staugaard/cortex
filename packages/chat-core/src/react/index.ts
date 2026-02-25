@@ -13,7 +13,12 @@ export {
 } from "./use-chat-sessions";
 export { ChatConversation } from "./chat-conversation";
 export { renderMessagePart } from "./part-renderers";
+export { AgentActivityPart, asAgentActivityData } from "./agent-activity-part";
 export type {
+	AgentActivityData,
+	AgentActivityEvent,
+	AgentActivityStatus,
+	AgentActivityWorkflow,
 	ChatComposerRenderInput,
 	ChatConversationProps,
 	ChatDataPartRenderer,

@@ -1,5 +1,6 @@
 import "./setup-dom";
 import { describe, expect, test } from "bun:test";
+import { render } from "@testing-library/react";
 import type { UIMessage } from "ai";
 import { isValidElement } from "react";
 import { renderMessagePart } from "../../src/react/part-renderers";
@@ -11,14 +12,40 @@ const baseMessage: UIMessage = {
 	parts: [],
 };
 
+const validAgentActivityData = {
+	activityId: "act-1",
+	workflow: "math-expert",
+	status: "completed",
+	prompt: "Solve 17 * 9",
+	output: "153",
+	startedAt: Date.now() - 500,
+	updatedAt: Date.now(),
+	counters: {
+		steps: 1,
+		toolCalls: 1,
+		completedRuns: 1,
+		cancelledRuns: 0,
+		failedRuns: 0,
+	},
+	events: [
+		{
+			id: "evt-1",
+			timestamp: Date.now(),
+			source: "manager",
+			type: "tool-call-finish",
+			toolName: "solve_arithmetic",
+		},
+	],
+};
+
 describe("renderMessagePart", () => {
 	test("uses custom data renderer before default fallback", () => {
 		const custom = <div>custom-data</div>;
 		const result = renderMessagePart({
 			part: {
-				type: "data-listingCard",
-				id: "listing-1",
-				data: { id: "listing-1" },
+				type: "data-agentActivity",
+				id: "activity-1",
+				data: validAgentActivityData,
 			} as UIMessage["parts"][number],
 			message: baseMessage,
 			messageIndex: 0,
@@ -31,6 +58,28 @@ describe("renderMessagePart", () => {
 		});
 
 		expect(result).toBe(custom);
+	});
+
+	test("renders default agent activity data part when valid", () => {
+		const result = renderMessagePart({
+			part: {
+				type: "data-agentActivity",
+				id: "activity-1",
+				data: validAgentActivityData,
+			} as UIMessage["parts"][number],
+			message: baseMessage,
+			messageIndex: 0,
+			partIndex: 0,
+			status: "ready",
+			disableToolActions: false,
+			onApproveToolCall: () => {},
+			onDenyToolCall: () => {},
+		});
+
+		expect(isValidElement(result)).toBe(true);
+		const view = render(<>{result}</>);
+		expect(view.getByText("Agent")).toBeTruthy();
+		expect(view.getByText("completed")).toBeTruthy();
 	});
 
 	test("uses custom tool renderer before default tool card", () => {
@@ -78,11 +127,12 @@ describe("renderMessagePart", () => {
 		expect(result).toBe(custom);
 	});
 
-	test("falls back to default unsupported JSON code block", () => {
+	test("falls back to unsupported UI when agent activity payload is malformed", () => {
 		const result = renderMessagePart({
 			part: {
-				type: "unknown-part",
-				payload: { id: 42 },
+				type: "data-agentActivity",
+				id: "activity-1",
+				data: { invalid: true },
 			} as UIMessage["parts"][number],
 			message: baseMessage,
 			messageIndex: 0,
@@ -94,5 +144,7 @@ describe("renderMessagePart", () => {
 		});
 
 		expect(isValidElement(result)).toBe(true);
+		const view = render(<>{result}</>);
+		expect(view.container.textContent?.includes("data-agentActivity")).toBe(true);
 	});
 });

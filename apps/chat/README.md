@@ -24,14 +24,11 @@ bun run dev:hmr
 bun run dev
 bun run dev:hmr
 bun run dev:hmr:cef
+bun run dev:stop
 bun run typecheck
 bun run cdp:check
 bun run cdp:targets
-bun run cdp:screenshot
-bun run cdp:smoke
-bun run cdp:llm
-bun run cdp:tools
-bun run check:elements-adoption
+bun run check:shared-chat-adoption
 ```
 
 ## Agent Routing
@@ -52,13 +49,11 @@ Rendering contract:
 - `sensitive_action_preview` uses real AI SDK approval flow via in-chat Approve/Deny controls
 - Anthropic reasoning is enabled and streamed as AI SDK `reasoning` parts, rendered inline in chat
 
-## Elements Governance
+## Shared Chat Adoption Guard
 
-- Adoption is docs-gated: every adopted component must follow official best practices from `https://elements.ai-sdk.dev/components/<component>`.
-- Governance and checklist source of truth:
-  - `/Users/staugaard/Code/cortex/apps/chat/docs/ai-sdk-elements-adoption.md`
+- `apps/chat` conversation/session UI must be wired through `@cortex/chat-core/react`.
 - Enforcement check:
-  - `bun run check:elements-adoption`
+  - `bun run check:shared-chat-adoption`
 
 ## In-Conversation Agent Activity
 
@@ -72,5 +67,5 @@ Assistant messages include an `Agent activity` item:
 
 - `src/bun/chat-rpc.ts`: Bun RPC handlers + stream orchestration
 - `src/bun/chat-agent.ts`: manager/subagent orchestration and activity recording
-- `src/mainview/App.tsx`: conversation rendering including activity/tool parts
-- `src/mainview/components/AgentActivityItem.tsx`: collapsed/expanded activity UI
+- `src/mainview/App.tsx`: app shell + shared conversation/session wiring
+- `src/mainview/chat-session-store.ts`: RPC-backed `ChatSessionStore` adapter

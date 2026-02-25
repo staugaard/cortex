@@ -8,8 +8,6 @@ Use either:
 - direct unscripted interaction in the live app window, or
 - CDP scripts when you want repeatability/artifacts.
 
-Also treat `/Users/staugaard/Code/cortex/apps/chat/docs/ai-sdk-elements-adoption.md` as a required checklist source when adopting any AI SDK Elements component.
-
 ## Why This Exists
 `src/mainview/chat-rpc.ts` initializes `Electroview`, which requires Electrobun-injected globals (`__electrobunWebviewId`, `__electrobunRpcSocketPort`).
 A standalone browser tab does not have those globals, so RPC bootstrapping fails and the UI can appear blank/broken.
@@ -46,6 +44,12 @@ bun run dev:hmr
 bun run dev:hmr:cef
 ```
 
+- Clean shutdown for app testing sessions:
+
+```bash
+bun run dev:stop
+```
+
 ## Primary Verification Workflow (Manual, Unscripted)
 Run from `/Users/staugaard/Code/cortex/apps/chat`.
 
@@ -59,8 +63,8 @@ bun run dev:hmr
 - streaming output appears incrementally
 - cancel stops an in-flight response cleanly
 - session switching keeps messages isolated
-- no `Chat Error`/`Load Error`/`Save Error` toast appears unless the scenario explicitly expects it
-- no `Save Error` toast appears during normal sends/switches
+- no shared conversation error banner appears during normal sends/switches
+- load-error banner only appears when load operations fail
 - reloading the same session restores persisted messages
 - generated session title upgrades from fallback to a concise final title
 - assistant messages include an `Agent activity` item that is collapsed by default
@@ -73,7 +77,7 @@ Use this order to avoid false negatives caused by lifecycle races:
 1. New chat:
 - click `New Chat`
 - wait for empty-state text (`Send a message to get started`)
-- verify Diagnostics `Session` shows a provisional `tmp:` ID before first send
+- verify a new provisional chat appears in the session rail before first send
 
 2. First send:
 - submit prompt
@@ -82,7 +86,7 @@ Use this order to avoid false negatives caused by lifecycle races:
 
 3. Multi-turn:
 - only send next prompt after previous turn is fully done
-- if diagnosing mid-stream behavior, verify Diagnostics `Status` transitions (`submitted/streaming` -> `ready`)
+- if diagnosing mid-stream behavior, verify composer control transitions (`Stop` -> `Submit`)
 
 4. Title validation:
 - after first completed assistant turn, title may initially be fallback
@@ -133,9 +137,9 @@ Use deterministic prompts that strongly bias tool selection:
 - prompt: `Think step by step and then answer: what is 27*14?`
 - expect: at least one assistant `Reasoning` item appears (collapsible)
 
-6. Elements compliance check:
-- run `bun run check:elements-adoption`
-- expect success and no missing must-now components/imports
+6. Shared chat adoption check:
+- run `bun run check:shared-chat-adoption`
+- expect success and no legacy app-local conversation renderer stack
 
 3. If you need scriptable checks or screenshots, switch to CEF/CDP mode:
 
@@ -170,6 +174,11 @@ playwright-cli screenshot --filename=response.png
 playwright-cli close
 ```
 
+Notes:
+- `playwright-cli close` and `playwright-cli close-all` close Playwright CLI browser sessions only.
+- They do **not** stop the Electrobun app started by `bun run dev:hmr` or `bun run dev:hmr:cef`.
+- Use `bun run dev:stop` to shut down both Playwright sessions and matching app dev processes.
+
 ## CDP Health Checks
 
 These curl-based scripts remain for quick endpoint verification:
@@ -196,6 +205,7 @@ These curl-based scripts remain for quick endpoint verification:
 - App feels blocked or profile lock errors appear:
   - Ensure only one `dev:hmr`/`dev:hmr:cef` session is running.
   - Restart the app mode you are using.
+  - If Playwright sessions are stale, run `playwright-cli close-all` (or `playwright-cli kill-all`) before reconnecting.
 
 ## Artifacts
 Generated screenshots are written to:

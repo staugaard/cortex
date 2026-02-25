@@ -38,6 +38,7 @@ import {
 	ToolInput,
 	ToolOutput,
 } from "./components/ai-elements/tool";
+import { AgentActivityPart, asAgentActivityData } from "./agent-activity-part";
 import type {
 	ChatDataPartRenderer,
 	ChatToolPart,
@@ -208,6 +209,18 @@ export function renderMessagePart<UI_MESSAGE extends UIMessage>(input: {
 		});
 		if (customDataPart != null) {
 			return customDataPart;
+		}
+
+		if (part.type === "data-agentActivity") {
+			const activity = asAgentActivityData(part.data);
+			if (activity) {
+				return (
+					<AgentActivityPart
+						key={`${message.id}-${partIndex}-agent-activity`}
+						activity={activity}
+					/>
+				);
+			}
 		}
 	}
 

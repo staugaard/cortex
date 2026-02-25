@@ -311,9 +311,15 @@ export function useChatSessions<UI_MESSAGE>(input: {
 
 	const setMessagesForActiveSession = useCallback((messages: UI_MESSAGE[]) => {
 		const currentActiveSessionId = activeSessionIdRef.current;
-		setMessagesBySession((previous) =>
-			setSessionMessages(previous, currentActiveSessionId, messages),
-		);
+		setMessagesBySession((previous) => {
+			const next = setSessionMessages(
+				previous,
+				currentActiveSessionId,
+				messages,
+			);
+			messagesBySessionRef.current = next;
+			return next;
+		});
 	}, []);
 
 	const reloadActiveSession = useCallback(async () => {
