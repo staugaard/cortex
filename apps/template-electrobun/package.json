@@ -12,6 +12,7 @@
 		"build:prod": "vite build && electrobun build --channel prod",
 		"start": "bun run dev",
 		"typecheck": "tsc -p tsconfig.json --pretty false",
+		"dev:stop": "bun scripts/stop-testing-session.mjs",
 		"cdp:check": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/version",
 		"cdp:targets": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/list"
 	},
