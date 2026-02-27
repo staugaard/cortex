@@ -21,6 +21,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",
     "@cortex/core-ui": "workspace:*",
+    "lucide-react": "^0.575.0",
     "ai": "^6.0.97",
     "drizzle-orm": "^0.44.2",
     "zod": "^3.25.7"

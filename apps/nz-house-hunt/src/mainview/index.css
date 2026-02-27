@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "@cortex/core-ui/theme.css";
+
 @source "../../../../packages/core-ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/chat-core/src/react/**/*.{ts,tsx}";
+@source "../../../../packages/listing-hunter/src/react/**/*.{ts,tsx}";
 
 @theme {
 	/* App-specific colors (not covered by shadcn) */
@@ -15,6 +17,8 @@ body,
 #root {
 	height: 100%;
 	overflow: hidden;
+	background-color: #ffffff;
+	color: #1d1d1f;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }

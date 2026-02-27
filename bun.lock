@@ -147,6 +147,7 @@
         "@cortex/core-ui": "workspace:*",
         "ai": "^6.0.97",
         "drizzle-orm": "^0.44.2",
+        "lucide-react": "^0.575.0",
         "zod": "^3.25.7",
       },
       "devDependencies": {
