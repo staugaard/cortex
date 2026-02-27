@@ -9,9 +9,12 @@ import { trademeTools } from "./trademe-tools";
 const DEV_SERVER_PORT = 5174;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
 
+// Persistent data directory outside the app bundle (same pattern as apps/chat)
+const dataDir = Utils.paths.userData;
+
 const hunter = createListingHunter<RentalListing>({
 	schema: rentalListingSchema,
-	dbPath: join(import.meta.dir, "../../data/nz-house-hunt.sqlite"),
+	dbPath: join(dataDir, "nz-house-hunt.sqlite"),
 	sourceTools: trademeTools,
 	sourceName: "trademe",
 });
@@ -19,7 +22,7 @@ const hunter = createListingHunter<RentalListing>({
 const { rpc: appRpc, closeChatDb } = createAppRpc({
 	hunter,
 	schema: rentalListingSchema,
-	chatDbPath: join(import.meta.dir, "../../data/interview-chat.sqlite"),
+	chatDbPath: join(dataDir, "interview-chat.sqlite"),
 });
 
 async function getMainViewUrl(): Promise<string> {
