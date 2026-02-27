@@ -32,6 +32,7 @@ bun-debug.log*
 
 # playwright-cli output
 .playwright-cli/
+output/
 
 # editor and OS files
 .DS_Store
