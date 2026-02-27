@@ -101,6 +101,8 @@ export default function App() {
 				loading={feedState.loading}
 				activeFilter={feedState.activeFilter}
 				onFilterChange={feedState.setFilter}
+				sortBy={feedState.sortBy}
+				onSortChange={feedState.setSortBy}
 				onLoadMore={feedState.loadMore}
 				hasMore={feedState.hasMore}
 				loadingMore={feedState.loadingMore}

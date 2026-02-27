@@ -51,6 +51,7 @@ export function createAppRpc(options: {
 				getListings: (params) =>
 					options.hunter.listings.query(
 						params.filter,
+						params.sort,
 						params.limit,
 						params.offset,
 					),

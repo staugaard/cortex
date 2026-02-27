@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { appRpc } from "./rpc";
-import type { ListingFilter, PipelineRunStats } from "@cortex/listing-hunter/types";
+import type { ListingFilter, ListingSort, PipelineRunStats } from "@cortex/listing-hunter/types";
 
 const PAGE_SIZE = 20;
 
@@ -17,6 +17,8 @@ export interface UseFeedStateReturn {
 	error: string | null;
 	activeFilter: ListingFilter;
 	setFilter: (filter: ListingFilter) => void;
+	sortBy: ListingSort;
+	setSortBy: (sort: ListingSort) => void;
 	loadMore: () => void;
 	refresh: () => void;
 	rateListing: (id: string, rating: 1 | 2 | 3 | 4 | 5) => void;
@@ -35,6 +37,7 @@ export function useFeedState(): UseFeedStateReturn {
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [activeFilter, setActiveFilter] = useState<ListingFilter>("new");
+	const [sortBy, setSortByState] = useState<ListingSort>("rating");
 	const [offset, setOffset] = useState(0);
 
 	const [pipelineRunning, setPipelineRunning] = useState(false);
@@ -45,10 +48,12 @@ export function useFeedState(): UseFeedStateReturn {
 
 	const filterRef = useRef(activeFilter);
 	filterRef.current = activeFilter;
+	const sortRef = useRef(sortBy);
+	sortRef.current = sortBy;
 
 	// ─── Fetch listings ────────────────────────────────────────────────
 	const fetchListings = useCallback(
-		async (filter: ListingFilter, newOffset: number, append: boolean) => {
+		async (filter: ListingFilter, sort: ListingSort, newOffset: number, append: boolean) => {
 			if (!append) setLoading(true);
 			else setLoadingMore(true);
 			setError(null);
@@ -56,6 +61,7 @@ export function useFeedState(): UseFeedStateReturn {
 			try {
 				const response = await appRpc.request.getListings({
 					filter,
+					sort,
 					limit: PAGE_SIZE,
 					offset: newOffset,
 				});
@@ -74,23 +80,28 @@ export function useFeedState(): UseFeedStateReturn {
 		[],
 	);
 
-	// Initial load + filter changes
+	// Initial load + filter/sort changes
 	useEffect(() => {
-		void fetchListings(activeFilter, 0, false);
-	}, [activeFilter, fetchListings]);
+		void fetchListings(activeFilter, sortBy, 0, false);
+	}, [activeFilter, sortBy, fetchListings]);
 
 	const setFilter = useCallback((filter: ListingFilter) => {
 		setActiveFilter(filter);
 		setOffset(0);
 	}, []);
 
+	const setSortBy = useCallback((sort: ListingSort) => {
+		setSortByState(sort);
+		setOffset(0);
+	}, []);
+
 	const loadMore = useCallback(() => {
-		void fetchListings(filterRef.current, offset, true);
+		void fetchListings(filterRef.current, sortRef.current, offset, true);
 	}, [offset, fetchListings]);
 
 	const refresh = useCallback(() => {
 		setOffset(0);
-		void fetchListings(filterRef.current, 0, false);
+		void fetchListings(filterRef.current, sortRef.current, 0, false);
 	}, [fetchListings]);
 
 	// ─── Optimistic rating ─────────────────────────────────────────────
@@ -155,7 +166,7 @@ export function useFeedState(): UseFeedStateReturn {
 	useEffect(() => {
 		const handleListingsUpdated = () => {
 			// Re-fetch current filter when new listings arrive
-			void fetchListings(filterRef.current, 0, false);
+			void fetchListings(filterRef.current, sortRef.current, 0, false);
 		};
 
 		const handlePipelineStatus = (payload: {
@@ -192,6 +203,8 @@ export function useFeedState(): UseFeedStateReturn {
 		error,
 		activeFilter,
 		setFilter,
+		sortBy,
+		setSortBy,
 		loadMore,
 		refresh,
 		rateListing,

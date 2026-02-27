@@ -4,7 +4,7 @@ import { createListingHunter } from "@cortex/listing-hunter/bun";
 import { createAppRpc } from "./rpc";
 import { rentalListingSchema } from "./listing-schema";
 import type { RentalListing } from "./listing-schema";
-import { trademeTools } from "./trademe-tools";
+import { trademeTools, extractTradeMeListings, hydrateTradeMeListing } from "./trademe-tools";
 
 const DEV_SERVER_PORT = 5174;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -17,6 +17,8 @@ const hunter = createListingHunter<RentalListing>({
 	dbPath: join(dataDir, "nz-house-hunt.sqlite"),
 	sourceTools: trademeTools,
 	sourceName: "trademe",
+	extract: extractTradeMeListings,
+	hydrate: hydrateTradeMeListing,
 });
 
 const { rpc: appRpc, closeChatDb } = createAppRpc({

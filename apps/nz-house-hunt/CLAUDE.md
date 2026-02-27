@@ -14,6 +14,7 @@ AI-powered NZ rental property discovery app built on `@cortex/listing-hunter` an
 - `src/mainview/types.ts` — `AppSchema` combining listing-hunter + chat-core RPC types.
 - `scripts/` — Dev tooling scripts (shutdown, etc.).
 - `docs/automation-runbook.md` — Required workflow for real in-app UI automation and verification.
+- `docs/trademe-api-discovery.md` — TradeMe REST API reference and how it was discovered using Playwright CLI.
 
 ## Runtime Boundary Rules
 
