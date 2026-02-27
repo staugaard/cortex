@@ -7,9 +7,14 @@ import {
 	Badge,
 	Button,
 	Spinner,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@cortex/core-ui";
 import { Sparkles, Star, Inbox, ArchiveX } from "lucide-react";
-import type { BaseListing, ListingFilter } from "@cortex/listing-hunter/types";
+import type { BaseListing, ListingFilter, ListingSort } from "@cortex/listing-hunter/types";
 import { ListingCard } from "./ListingCard";
 
 export type ListingFeedProps<T extends BaseListing> = {
@@ -18,6 +23,8 @@ export type ListingFeedProps<T extends BaseListing> = {
 	loading: boolean;
 	activeFilter: ListingFilter;
 	onFilterChange: (filter: ListingFilter) => void;
+	sortBy: ListingSort;
+	onSortChange: (sort: ListingSort) => void;
 	onLoadMore: () => void;
 	hasMore: boolean;
 	loadingMore: boolean;
@@ -69,6 +76,8 @@ export function ListingFeed<T extends BaseListing>({
 	loading,
 	activeFilter,
 	onFilterChange,
+	sortBy,
+	onSortChange,
 	onLoadMore,
 	hasMore,
 	loadingMore,
@@ -108,11 +117,20 @@ export function ListingFeed<T extends BaseListing>({
 				</Tabs>
 			</div>
 
-			{/* Listing count */}
-			<div className="shrink-0 px-4 py-1">
+			{/* Listing count + sort */}
+			<div className="flex shrink-0 items-center justify-between px-4 py-1">
 				<span className="text-xs text-muted-foreground">
 					{loading ? "Loading…" : `${total} listing${total !== 1 ? "s" : ""}`}
 				</span>
+				<Select value={sortBy} onValueChange={(v) => onSortChange(v as ListingSort)}>
+					<SelectTrigger className="h-7 w-[130px] text-xs">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="rating">Top Rated</SelectItem>
+						<SelectItem value="newest">Newest</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 
 			{/* Scrollable content */}

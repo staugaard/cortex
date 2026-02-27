@@ -9,11 +9,22 @@ import { baseListingKeys } from "../types/index.js";
 
 export type SourceTools = ToolSet;
 
+/**
+ * Deterministic extraction function — maps raw tool outputs to listing objects.
+ * Returns objects without system-managed fields (id, discoveredAt, ratings, etc.);
+ * the discovery pipeline adds those and validates through the full schema.
+ */
+export type ExtractFn = (
+	toolOutputs: Array<{ toolName: string; input: unknown; output: unknown }>,
+) => Array<Record<string, unknown>>;
+
 export interface DiscoveryAgentOptions {
 	sourceTools: SourceTools;
 	schema: ZodObject<ZodRawShape>;
 	preferenceProfile: string | null;
 	sourceName: string;
+	/** When provided, replaces the LLM extraction (phase 2) with a deterministic mapping. */
+	extract?: ExtractFn;
 }
 
 export interface DiscoveryResult<T extends BaseListing> {
@@ -125,6 +136,8 @@ export async function runDiscovery<T extends BaseListing>(
 	const schemaDescription = describeSchema(options.schema);
 
 	// Phase 1: Search — agent calls source tools to collect raw content
+	console.log(`[discovery] phase 1: starting search (source=${options.sourceName}, hasPrefs=${!!options.preferenceProfile})`);
+
 	const searchResult = await generateText({
 		model: anthropic(DISCOVERY_MODEL_ID),
 		system: buildSearchSystemPrompt(
@@ -141,48 +154,70 @@ export async function runDiscovery<T extends BaseListing>(
 	const toolOutputs: Array<{
 		toolName: string;
 		input: unknown;
-		output: string;
+		output: unknown;
 	}> = [];
 
 	for (const step of searchResult.steps) {
 		for (const toolResult of step.toolResults) {
 			toolCallCount++;
+			console.log(`[discovery] tool call #${toolCallCount}: ${toolResult.toolName}(${JSON.stringify(toolResult.input)})`);
 			toolOutputs.push({
 				toolName: toolResult.toolName,
 				input: toolResult.input,
-				output: truncateToolOutput(toolResult.output),
+				output: toolResult.output,
 			});
 		}
 	}
 
+	console.log(`[discovery] phase 1 complete: ${searchResult.steps.length} steps, ${toolCallCount} tool calls, ${toolOutputs.length} outputs`);
+
 	if (toolOutputs.length === 0) {
+		console.warn(`[discovery] no tool outputs — agent made no tool calls. LLM text: ${searchResult.text?.slice(0, 500)}`);
 		return { listings: [], toolCallCount: 0, stepsUsed: searchResult.steps.length };
 	}
 
-	// Phase 2: Extract — structured extraction from collected content
-	const extractionSchema = buildExtractionSchema(options.schema);
+	// Phase 2: Extract listings from tool outputs
+	let rawListings: Array<Record<string, unknown>>;
 
-	const extractionResult = await generateText({
-		model: anthropic(DISCOVERY_MODEL_ID),
-		output: Output.array({ element: extractionSchema }),
-		system: [
-			"You are a data extraction specialist. Extract all listings from the provided search results.",
-			"For each listing, extract all available fields. If a field is not available, use null where the schema allows it.",
-			`The sourceName for all listings is "${options.sourceName}".`,
-			"Extract the sourceId from the listing URL or page identifier on the source platform.",
-			"Extract the sourceUrl as the full URL to the individual listing page.",
-			"Be thorough — extract every listing visible in the search results.",
-			"Do not invent or fabricate data. Only extract what is present in the source content.",
-		].join("\n"),
-		prompt: `Extract listings from these search results:\n\n${JSON.stringify(toolOutputs, null, 2)}`,
-	});
+	if (options.extract) {
+		// Deterministic extraction — source returns structured data
+		console.log(`[discovery] phase 2: deterministic extraction from ${toolOutputs.length} tool outputs`);
+		rawListings = options.extract(toolOutputs);
+		console.log(`[discovery] phase 2 complete: ${rawListings.length} raw listings extracted (deterministic)`);
+	} else {
+		// LLM extraction — source returns unstructured/semi-structured data
+		console.log(`[discovery] phase 2: LLM extraction from ${toolOutputs.length} tool outputs`);
+		const serializedOutputs = toolOutputs.map((o) => ({
+			toolName: o.toolName,
+			input: o.input,
+			output: truncateToolOutput(o.output),
+		}));
 
-	const rawListings = extractionResult.experimental_output ?? [];
+		const extractionSchema = buildExtractionSchema(options.schema);
+		const extractionResult = await generateText({
+			model: anthropic(DISCOVERY_MODEL_ID),
+			output: Output.array({ element: extractionSchema }),
+			system: [
+				"You are a data extraction specialist. Extract all listings from the provided search results.",
+				"For each listing, extract all available fields. If a field is not available, use null where the schema allows it.",
+				`The sourceName for all listings is "${options.sourceName}".`,
+				"Extract the sourceId from the listing URL or page identifier on the source platform.",
+				"Extract the sourceUrl as the full URL to the individual listing page.",
+				"Be thorough — extract every listing visible in the search results.",
+				"Do not invent or fabricate data. Only extract what is present in the source content.",
+			].join("\n"),
+			prompt: `Extract listings from these search results:\n\n${JSON.stringify(serializedOutputs, null, 2)}`,
+		});
+
+		rawListings = (extractionResult.experimental_output ?? []) as Array<Record<string, unknown>>;
+		console.log(`[discovery] phase 2 complete: ${rawListings.length} raw listings extracted (LLM)`);
+	}
 
 	// Hydrate with system-managed fields and validate through full schema
 	const now = new Date();
 	const listings: T[] = [];
 
+	let validationFailures = 0;
 	for (const raw of rawListings) {
 		try {
 			const hydrated = {
@@ -197,10 +232,17 @@ export async function runDiscovery<T extends BaseListing>(
 			};
 			const validated = options.schema.parse(hydrated) as T;
 			listings.push(validated);
-		} catch {
-			// Skip listings that fail full schema validation
+		} catch (err) {
+			validationFailures++;
+			console.warn(`[discovery] listing failed validation:`, {
+				sourceId: (raw as Record<string, unknown>).sourceId,
+				sourceUrl: (raw as Record<string, unknown>).sourceUrl,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
 	}
+
+	console.log(`[discovery] result: ${listings.length} valid listings, ${validationFailures} failed validation (${rawListings.length} raw total)`);
 
 	return {
 		listings,

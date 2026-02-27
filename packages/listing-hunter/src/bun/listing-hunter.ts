@@ -25,8 +25,8 @@ import {
 	createRatingOverrideRepository,
 	type RatingOverrideRepository,
 } from "./rating-override-repository.js";
-import { runPipeline, type PipelineRunResult } from "./pipeline.js";
-import type { SourceTools } from "./discovery-agent.js";
+import { runPipeline, type PipelineRunResult, type HydrateFn } from "./pipeline.js";
+import type { SourceTools, ExtractFn } from "./discovery-agent.js";
 import { rateListing, type RateFn } from "./rating-agent.js";
 import { synthesizeCalibration, type CalibrateFn } from "./calibration-agent.js";
 
@@ -37,6 +37,8 @@ export interface ListingHunterOptions<T extends BaseListing> {
 	dbPath: string;
 	sourceTools?: SourceTools;
 	sourceName?: string;
+	extract?: ExtractFn;
+	hydrate?: HydrateFn<T>;
 	rate?: RateFn<T>;
 	calibrate?: CalibrateFn;
 }
@@ -48,6 +50,7 @@ export interface ListingHunter<T extends BaseListing> {
 	pipelineRuns: PipelineRunRepository;
 	ratingOverrides: RatingOverrideRepository;
 	runPipeline(): Promise<PipelineRunResult>;
+	rateUnrated(): Promise<{ rated: number; failed: number }>;
 	rateListing(
 		id: string,
 		userRating: number,
@@ -124,8 +127,52 @@ export function createListingHunter<T extends BaseListing>(
 				listings: repos.listings,
 				pipelineRuns: repos.pipelineRuns,
 				documents: repos.documents,
+				extract: options.extract,
+				hydrate: options.hydrate,
 				rate,
 			});
+		},
+		async rateUnrated() {
+			const prefDoc = repos.documents.get("preference_profile");
+			const preferenceProfile = prefDoc?.content ?? null;
+			if (!preferenceProfile) {
+				console.log("[listing-hunter] rateUnrated: no preference profile, skipping");
+				return { rated: 0, failed: 0 };
+			}
+
+			const calibrationDoc = repos.documents.get("calibration_log");
+			const calibrationLog = calibrationDoc?.content ?? null;
+
+			const unrated = repos.listings.queryUnrated();
+			if (unrated.length === 0) {
+				return { rated: 0, failed: 0 };
+			}
+
+			console.log(`[listing-hunter] rateUnrated: ${unrated.length} listings to rate`);
+			let rated = 0;
+			let failed = 0;
+
+			const CONCURRENCY = 10;
+			let index = 0;
+			async function worker() {
+				while (index < unrated.length) {
+					const listing = unrated[index++];
+					try {
+						const result = await rate(listing, preferenceProfile, calibrationLog);
+						if (result) {
+							repos.listings.updateAiRating(listing.id, result.rating, result.reason);
+							rated++;
+						}
+					} catch (err) {
+						failed++;
+						console.error(`[listing-hunter] rateUnrated failed for ${listing.sourceId}:`, err instanceof Error ? err.message : String(err));
+					}
+				}
+			}
+			await Promise.all(Array.from({ length: Math.min(CONCURRENCY, unrated.length) }, () => worker()));
+
+			console.log(`[listing-hunter] rateUnrated complete: ${rated} rated, ${failed} failed`);
+			return { rated, failed };
 		},
 		async rateListing(id, userRating, userNote) {
 			const existing = repos.listings.getById(id);

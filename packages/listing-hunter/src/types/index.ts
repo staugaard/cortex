@@ -41,6 +41,8 @@ export type PipelineRunStats = {
 
 export type ListingFilter = "new" | "shortlist" | "all" | "archived";
 
+export type ListingSort = "rating" | "newest";
+
 // ─── Base field keys ─────────────────────────────────────────────────────────
 // Used by the database layer to split base columns from metadata JSON.
 
