@@ -1,17 +1,31 @@
 import { useCallback, useEffect, useState } from "react";
 import { appRpc } from "./rpc";
+import { InterviewView } from "./InterviewView";
+
+type View = "feed" | "interview";
 
 type Listing = Awaited<
 	ReturnType<typeof appRpc.request.getListings>
 >["listings"][number];
 
 export default function App() {
+	const [view, setView] = useState<View>("feed");
+	const [profileExists, setProfileExists] = useState<boolean | null>(null);
 	const [listings, setListings] = useState<Listing[]>([]);
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [runningPipeline, setRunningPipeline] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [lastRunId, setLastRunId] = useState<string | null>(null);
+
+	useEffect(() => {
+		void appRpc.request.hasPreferenceProfile().then(({ exists }) => {
+			setProfileExists(exists);
+			if (!exists) {
+				setView("interview");
+			}
+		});
+	}, []);
 
 	const loadListings = useCallback(async () => {
 		setLoading(true);
@@ -49,6 +63,31 @@ export default function App() {
 		void loadListings();
 	}, [loadListings]);
 
+	if (view === "interview") {
+		return (
+			<div className="flex h-full flex-col">
+				<header className="flex shrink-0 items-center justify-between border-b px-6 py-3">
+					<h1 className="text-lg font-semibold">Preferences</h1>
+					{profileExists && (
+						<button
+							type="button"
+							className="rounded-md border px-3 py-1.5 text-sm"
+							onClick={() => setView("feed")}
+						>
+							Back to listings
+						</button>
+					)}
+				</header>
+				<InterviewView
+					onDone={() => {
+						setProfileExists(true);
+						setView("feed");
+					}}
+				/>
+			</div>
+		);
+	}
+
 	return (
 		<div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4 p-6">
 			<header className="flex flex-wrap items-center justify-between gap-3">
@@ -59,6 +98,13 @@ export default function App() {
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						className="rounded-md border px-3 py-2 text-sm"
+						onClick={() => setView("interview")}
+					>
+						Preferences
+					</button>
 					<button
 						type="button"
 						className="rounded-md border px-3 py-2 text-sm"
@@ -77,6 +123,20 @@ export default function App() {
 					</button>
 				</div>
 			</header>
+
+			{!profileExists && profileExists !== null ? (
+				<div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
+					No preference profile set.{" "}
+					<button
+						type="button"
+						className="underline"
+						onClick={() => setView("interview")}
+					>
+						Set up your preferences
+					</button>{" "}
+					to enable AI-powered discovery and rating.
+				</div>
+			) : null}
 
 			{lastRunId ? (
 				<p className="text-xs text-muted-foreground">Last run id: {lastRunId}</p>

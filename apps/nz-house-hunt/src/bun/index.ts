@@ -16,7 +16,11 @@ const hunter = createListingHunter<RentalListing>({
 	sourceName: "trademe",
 });
 
-const appRpc = createAppRpc(hunter);
+const { rpc: appRpc, closeChatDb } = createAppRpc({
+	hunter,
+	schema: rentalListingSchema,
+	chatDbPath: join(import.meta.dir, "../../data/interview-chat.sqlite"),
+});
 
 async function getMainViewUrl(): Promise<string> {
 	const channel = await Updater.localInfo.channel();
@@ -49,6 +53,7 @@ const mainWindow = new BrowserWindow({
 });
 
 mainWindow.on("close", () => {
+	closeChatDb();
 	hunter.close();
 	Utils.quit();
 });

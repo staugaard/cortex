@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../../packages/chat-core/src/react/**/*.{ts,tsx}";
 
 @theme {
 	--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
@@ -24,6 +25,11 @@
 	--color-input: rgba(0, 0, 0, 0.09);
 	--color-ring: #007aff;
 	--radius: 0.5rem;
+
+	/* App-specific colors (not covered by shadcn) */
+	--color-tertiary: #aeaeb2;
+	--color-app-accent: #007aff;
+	--color-warning: #ff9500;
 }
 
 html,
