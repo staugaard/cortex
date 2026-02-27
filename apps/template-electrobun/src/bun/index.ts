@@ -23,7 +23,7 @@ async function getMainViewUrl(): Promise<string> {
 const url = await getMainViewUrl();
 
 const mainWindow = new BrowserWindow({
-	title: "My App",
+	title: "Template",
 	url,
 	rpc: appRpc,
 	frame: {

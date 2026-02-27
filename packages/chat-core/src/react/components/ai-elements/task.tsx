@@ -2,12 +2,7 @@
 
 import type { ComponentProps } from "react";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
-import { cn } from "../../lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from "@cortex/core-ui";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
 
 export type TaskItemFileProps = ComponentProps<"div">;

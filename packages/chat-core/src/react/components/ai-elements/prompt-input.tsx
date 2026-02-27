@@ -23,38 +23,28 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "../ui/command";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "../ui/hover-card";
-import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from "../ui/input-group";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { Spinner } from "../ui/spinner";
-import {
+  Spinner,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../ui/tooltip";
-import { cn } from "../../lib/utils";
+  cn,
+} from "@cortex/core-ui";
 import {
   CornerDownLeftIcon,
   ImageIcon,

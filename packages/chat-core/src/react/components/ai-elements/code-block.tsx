@@ -8,15 +8,15 @@ import type {
   ThemedToken,
 } from "shiki";
 
-import { Button } from "../ui/button";
 import {
+  Button,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { cn } from "../../lib/utils";
+  cn,
+} from "@cortex/core-ui";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import {
   createContext,
