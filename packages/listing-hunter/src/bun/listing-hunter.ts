@@ -206,6 +206,7 @@ export function createListingHunter<T extends BaseListing>(
 			}
 
 			console.log(`[listing-hunter] enrichUnenriched: ${unenriched.length} listings to enrich`);
+			const enrichFn = enrich; // capture for narrowing inside nested function
 			let enrichedCount = 0;
 			let failed = 0;
 			let reRated = 0;
@@ -218,7 +219,7 @@ export function createListingHunter<T extends BaseListing>(
 				while (enrichIdx < unenriched.length) {
 					const listing = unenriched[enrichIdx++];
 					try {
-						const extra = await enrich(listing, options.enrichmentPrompt!, preferenceProfile);
+						const extra = await enrichFn(listing, options.enrichmentPrompt!, preferenceProfile);
 						if (extra) {
 							repos.listings.updateMetadata(listing.id, extra);
 							repos.listings.markEnriched(listing.id);

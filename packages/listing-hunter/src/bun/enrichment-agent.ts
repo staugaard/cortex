@@ -80,10 +80,10 @@ export function createDefaultEnrichFn<T extends BaseListing>(
 		// Log step-by-step tool usage
 		for (const step of result.steps) {
 			for (const tc of step.toolCalls) {
-				console.log(`[enrich] ${listingLabel} → tool=${tc.toolName} args=${JSON.stringify(tc.args)}`);
+				console.log(`[enrich] ${listingLabel} → tool=${tc.toolName} args=${JSON.stringify((tc as Record<string, unknown>).args)}`);
 			}
 			for (const tr of step.toolResults) {
-				console.log(`[enrich] ${listingLabel} ← tool=${tr.toolName} result=${JSON.stringify(tr.result)}`);
+				console.log(`[enrich] ${listingLabel} ← tool=${tr.toolName} result=${JSON.stringify((tr as Record<string, unknown>).result)}`);
 			}
 		}
 
