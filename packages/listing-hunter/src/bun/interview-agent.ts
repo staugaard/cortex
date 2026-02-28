@@ -1,4 +1,4 @@
-import { ToolLoopAgent, tool, zodSchema } from "ai";
+import { ToolLoopAgent, tool, zodSchema, type ToolSet } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z, type ZodObject, type ZodRawShape } from "zod";
 import type { BaseListing } from "../types/index.js";
@@ -10,6 +10,8 @@ import type { DocumentRepository } from "./document-repository.js";
 export interface InterviewAgentOptions {
 	schema: ZodObject<ZodRawShape>;
 	documents: DocumentRepository;
+	interviewHints?: string;
+	interviewTools?: ToolSet;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -61,6 +63,7 @@ function describeSchemaForInterview(schema: ZodObject<ZodRawShape>): string {
 function buildInterviewSystemPrompt(
 	schemaDescription: string,
 	existingProfile: string | null,
+	interviewHints?: string,
 ): string {
 	const parts: string[] = [
 		"You are an interview agent helping a user define their preferences for a listing search.",
@@ -79,6 +82,15 @@ function buildInterviewSystemPrompt(
 		"6. After saving, confirm to the user that their preferences have been saved.",
 		"7. Keep the conversation friendly and focused. 3-5 questions is usually enough.",
 	];
+
+	if (interviewHints) {
+		parts.push(
+			"",
+			"## Additional Topics",
+			"The app has requested you also cover these topics during the interview:",
+			interviewHints,
+		);
+	}
 
 	if (existingProfile) {
 		parts.push(
@@ -100,7 +112,7 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
 
 	return new ToolLoopAgent({
 		model: anthropic(INTERVIEW_MODEL_ID),
-		instructions: buildInterviewSystemPrompt(schemaDescription, existingProfile),
+		instructions: buildInterviewSystemPrompt(schemaDescription, existingProfile, options.interviewHints),
 		tools: {
 			save_preference_profile: tool<
 				{ content: string },
@@ -117,6 +129,7 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
 					return { saved: true };
 				},
 			}),
+			...options.interviewTools,
 		},
 	});
 }

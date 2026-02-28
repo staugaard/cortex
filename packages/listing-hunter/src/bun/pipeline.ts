@@ -22,6 +22,12 @@ export type HydrateFn<T extends BaseListing> = (
 	listing: T,
 ) => Promise<Partial<T> | null>;
 
+export type EnrichFn<T extends BaseListing> = (
+	listing: T,
+	enrichmentPrompt: string,
+	preferenceProfile: string | null,
+) => Promise<Partial<T> | null>;
+
 export interface PipelineConfig<T extends BaseListing> {
 	schema: ZodObject<ZodRawShape>;
 	sourceTools: SourceTools;
@@ -32,6 +38,8 @@ export interface PipelineConfig<T extends BaseListing> {
 	discover?: DiscoverFn<T>;
 	extract?: ExtractFn;
 	hydrate?: HydrateFn<T>;
+	enrich?: EnrichFn<T>;
+	enrichmentPrompt?: string;
 	rate?: RateFn<T>;
 }
 
@@ -40,6 +48,7 @@ export interface PipelineRunResult {
 	stats: PipelineRunStats;
 }
 
+const ENRICH_CONCURRENCY = 3;
 const RATING_CONCURRENCY = 10;
 
 /** Run an async function over items with bounded concurrency. */
@@ -140,7 +149,29 @@ export async function runPipeline<T extends BaseListing>(
 			console.log(`[pipeline] hydrate done: ${hydrated} hydrated, ${hydrateFailed} failed`);
 		}
 
-		// 5. Rate — score new listings before insert (non-fatal)
+		// 5. Enrich — add context via LLM + tools (optional, non-fatal)
+		let enriched = 0;
+		const enrichedIds = new Set<string>();
+		if (config.enrich && config.enrichmentPrompt && newListings.length > 0) {
+			console.log(`[pipeline] enriching ${newListings.length} new listings (concurrency=${ENRICH_CONCURRENCY})...`);
+			let enrichFailed = 0;
+			await mapConcurrent(newListings, ENRICH_CONCURRENCY, async (listing) => {
+				try {
+					const extra = await config.enrich!(listing, config.enrichmentPrompt!, preferenceProfile);
+					if (extra) {
+						Object.assign(listing, extra);
+						enrichedIds.add(listing.id);
+						enriched++;
+					}
+				} catch (err) {
+					enrichFailed++;
+					console.error(`[pipeline] enrich failed (${enrichFailed}): ${listing.sourceId}: ${err instanceof Error ? err.message : String(err)}`);
+				}
+			});
+			console.log(`[pipeline] enrich done: ${enriched} enriched, ${enrichFailed} failed`);
+		}
+
+		// 6. Rate — score new listings before insert (non-fatal)
 		const calibrationDoc = config.documents.get("calibration_log");
 		const calibrationLog = calibrationDoc?.content ?? null;
 		const rate: RateFn<T> = config.rate ?? rateListing;
@@ -168,7 +199,7 @@ export async function runPipeline<T extends BaseListing>(
 			console.log(`[pipeline] rating done: ${rated} rated, ${ratingsFailed} failed`);
 		}
 
-		// 6. Store — insert new listings
+		// 7. Store — insert new listings
 		let inserted = 0;
 			for (const listing of newListings) {
 				try {
@@ -185,7 +216,67 @@ export async function runPipeline<T extends BaseListing>(
 				}
 			}
 
-		// 7. Self-heal — rate any previously unrated listings (from earlier failed runs)
+		// 7b. Mark enriched listings
+		for (const listing of newListings) {
+			if (enrichedIds.has(listing.id)) {
+				config.listings.markEnriched(listing.id);
+			}
+		}
+
+		// 8a. Self-heal — enrich any previously unenriched listings
+		let backfilledEnrichment = 0;
+		let reRated = 0;
+		if (config.enrich && config.enrichmentPrompt) {
+			const unenriched = config.listings.queryUnenriched();
+			if (unenriched.length > 0) {
+				console.log(`[pipeline] self-heal: ${unenriched.length} unenriched listings found, enriching (concurrency=${ENRICH_CONCURRENCY})...`);
+				let healEnrichFailed = 0;
+				const backfilledIds = new Set<string>();
+
+				await mapConcurrent(unenriched, ENRICH_CONCURRENCY, async (listing) => {
+					try {
+						const extra = await config.enrich!(listing, config.enrichmentPrompt!, preferenceProfile);
+						if (extra) {
+							config.listings.updateMetadata(listing.id, extra);
+							config.listings.markEnriched(listing.id);
+							backfilledEnrichment++;
+							backfilledIds.add(listing.id);
+						}
+					} catch (err) {
+						healEnrichFailed++;
+						console.error(`[pipeline] self-heal enrich failed (${healEnrichFailed}): ${listing.sourceId}: ${err instanceof Error ? err.message : String(err)}`);
+					}
+				});
+				console.log(`[pipeline] self-heal enrich done: ${backfilledEnrichment} enriched, ${healEnrichFailed} failed`);
+
+				// Re-rate backfilled listings (enrichment changes rating quality)
+				if (backfilledIds.size > 0) {
+					console.log(`[pipeline] self-heal: re-rating ${backfilledIds.size} backfilled listings...`);
+					let reRateFailed = 0;
+					// Re-read from DB to get updated metadata
+					const freshListings = [...backfilledIds]
+						.map((id) => config.listings.getById(id))
+						.filter((l): l is T => l !== null);
+
+					await mapConcurrent(freshListings, RATING_CONCURRENCY, async (listing) => {
+						try {
+							const result = await rate(listing, preferenceProfile, calibrationLog);
+							if (result) {
+								config.listings.updateAiRating(listing.id, result.rating, result.reason);
+								rated++;
+								reRated++;
+							}
+						} catch (err) {
+							reRateFailed++;
+							console.error(`[pipeline] self-heal re-rate failed: ${listing.sourceId}: ${err instanceof Error ? err.message : String(err)}`);
+						}
+					});
+					console.log(`[pipeline] self-heal re-rate done: ${reRated} re-rated, ${reRateFailed} failed`);
+				}
+			}
+		}
+
+		// 8b. Self-heal — rate any previously unrated listings (from earlier failed runs)
 		if (preferenceProfile) {
 			const unrated = config.listings.queryUnrated();
 			if (unrated.length > 0) {
@@ -210,12 +301,15 @@ export async function runPipeline<T extends BaseListing>(
 			}
 		}
 
-		// 8. Complete pipeline run
+		// 9. Complete pipeline run
 		const stats: PipelineRunStats = {
 			discovered,
 			duplicates,
 			new: inserted,
+			enriched,
 			rated,
+			backfilledEnrichment,
+			reRated,
 		};
 
 		config.pipelineRuns.complete(runId, stats);

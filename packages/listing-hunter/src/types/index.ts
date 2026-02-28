@@ -34,7 +34,10 @@ export type PipelineRunStats = {
 	discovered: number;
 	duplicates: number;
 	new: number;
+	enriched?: number;
 	rated: number;
+	backfilledEnrichment?: number;
+	reRated?: number;
 };
 
 // ─── Listing Filter ──────────────────────────────────────────────────────────

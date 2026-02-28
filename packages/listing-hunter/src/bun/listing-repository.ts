@@ -12,8 +12,11 @@ export interface ListingRepository<T extends BaseListing> {
 	getById(id: string): T | null;
 	query(filter: ListingFilter, sort?: ListingSort, limit?: number, offset?: number): { listings: T[]; total: number };
 	queryUnrated(limit?: number): T[];
+	queryUnenriched(limit?: number): T[];
 	updateRating(id: string, userRating: number, userNote?: string): T | null;
 	updateAiRating(id: string, aiRating: number, aiRatingReason: string): void;
+	updateMetadata(id: string, updates: Partial<T>): void;
+	markEnriched(id: string): void;
 	archive(id: string): void;
 	existsBySourceKey(sourceName: string, sourceId: string): boolean;
 }
@@ -165,6 +168,22 @@ export function createListingRepository<T extends BaseListing>(
 			return rows.map(rowToListing);
 		},
 
+		queryUnenriched(limit = 100): T[] {
+			const rows = db
+				.select()
+				.from(listings)
+				.where(
+					and(
+						eq(listings.archived, false),
+						sql`${listings.enrichedAt} IS NULL`,
+					),
+				)
+				.orderBy(desc(listings.discoveredAt))
+				.limit(limit)
+				.all();
+			return rows.map(rowToListing);
+		},
+
 		updateAiRating(id: string, aiRating: number, aiRatingReason: string): void {
 			const now = new Date().toISOString();
 			db.update(listings)
@@ -189,6 +208,33 @@ export function createListingRepository<T extends BaseListing>(
 				.where(eq(listings.id, id))
 				.run();
 			return this.getById(id);
+		},
+
+		updateMetadata(id: string, updates: Partial<T>): void {
+			const now = new Date().toISOString();
+			const rows = db
+				.select({ metadata: listings.metadata })
+				.from(listings)
+				.where(eq(listings.id, id))
+				.all();
+			if (rows.length === 0) return;
+
+			const currentMetadata = rows[0].metadata as Record<string, unknown>;
+			const { metadata: newMetadata } = splitMetadata(updates as T);
+			const mergedMetadata = { ...currentMetadata, ...newMetadata };
+
+			db.update(listings)
+				.set({ metadata: mergedMetadata, updatedAt: now })
+				.where(eq(listings.id, id))
+				.run();
+		},
+
+		markEnriched(id: string): void {
+			const now = new Date().toISOString();
+			db.update(listings)
+				.set({ enrichedAt: now, updatedAt: now })
+				.where(eq(listings.id, id))
+				.run();
 		},
 
 		archive(id: string): void {

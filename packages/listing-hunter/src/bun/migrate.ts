@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export function ensureSchema(db: Database): void {
 	db.exec(`
@@ -86,6 +86,15 @@ export function ensureSchema(db: Database): void {
 			`);
 			db.exec(
 				`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, datetime('now'))`,
+			);
+		})();
+	}
+
+	if (currentVersion < 2) {
+		db.transaction(() => {
+			db.exec(`ALTER TABLE listings ADD COLUMN enriched_at TEXT`);
+			db.exec(
+				`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, datetime('now'))`,
 			);
 		})();
 	}

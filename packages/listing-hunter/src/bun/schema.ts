@@ -15,6 +15,7 @@ export const listings = sqliteTable("listings", {
 	userRatingNote: text("user_rating_note"),
 	archived: integer("archived", { mode: "boolean" }).notNull().default(false),
 	discoveredAt: text("discovered_at").notNull(),
+	enrichedAt: text("enriched_at"),
 	createdAt: text("created_at").notNull(),
 	updatedAt: text("updated_at").notNull(),
 });
