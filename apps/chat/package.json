@@ -21,6 +21,7 @@
 		"@ai-sdk/anthropic": "^3.0.46",
 		"@ai-sdk/react": "^3.0.99",
 		"@cortex/chat-core": "workspace:*",
+		"@cortex/core-ui": "workspace:*",
 		"ai": "^6.0.97",
 		"electrobun": "1.13.1",
 		"react": "^19.2.4",

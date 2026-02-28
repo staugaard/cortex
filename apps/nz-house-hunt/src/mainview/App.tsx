@@ -1,117 +1,139 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+	FeedHeader,
+	ListingFeed,
+	PipelineStatusBar,
+} from "@cortex/listing-hunter/react";
+import { Button } from "@cortex/core-ui";
 import { appRpc } from "./rpc";
+import { useFeedState } from "./use-feed-state";
+import { RentalListingFields } from "./RentalListingFields";
+import { InterviewView } from "./InterviewView";
+import { ListingChatView } from "./ListingChatView";
 
-type Listing = Awaited<
-	ReturnType<typeof appRpc.request.getListings>
->["listings"][number];
+type View = "feed" | "interview" | "listing-chat";
 
 export default function App() {
-	const [listings, setListings] = useState<Listing[]>([]);
-	const [total, setTotal] = useState(0);
-	const [loading, setLoading] = useState(true);
-	const [runningPipeline, setRunningPipeline] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [lastRunId, setLastRunId] = useState<string | null>(null);
+	const [view, setView] = useState<View>("feed");
+	const [profileExists, setProfileExists] = useState<boolean | null>(null);
+	const feedState = useFeedState();
 
-	const loadListings = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const response = await appRpc.request.getListings({
-				filter: "all",
-				limit: 50,
-				offset: 0,
-			});
-			setListings(response.listings);
-			setTotal(response.total);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		} finally {
-			setLoading(false);
-		}
+	// Check for preference profile on mount
+	useEffect(() => {
+		void appRpc.request.hasPreferenceProfile().then(({ exists }) => {
+			setProfileExists(exists);
+			if (!exists) {
+				setView("interview");
+			}
+		});
 	}, []);
 
-	const runPipeline = useCallback(async () => {
-		setRunningPipeline(true);
-		setError(null);
-		try {
-			const { runId } = await appRpc.request.runPipeline();
-			setLastRunId(runId);
-			await loadListings();
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		} finally {
-			setRunningPipeline(false);
-		}
-	}, [loadListings]);
+	// ─── Interview view ────────────────────────────────────────────────
+	if (view === "interview") {
+		return (
+			<div className="flex h-full flex-col bg-background">
+				<header className="flex h-11 shrink-0 items-center justify-between border-b px-4">
+					<h1 className="text-sm font-semibold">Preferences</h1>
+					{profileExists && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setView("feed")}
+						>
+							Back to listings
+						</Button>
+					)}
+				</header>
+				<InterviewView
+					onDone={() => {
+						setProfileExists(true);
+						setView("feed");
+					}}
+				/>
+			</div>
+		);
+	}
 
-	useEffect(() => {
-		void loadListings();
-	}, [loadListings]);
+	// ─── Listing chat view ────────────────────────────────────────────
+	if (view === "listing-chat") {
+		return (
+			<div className="flex h-full flex-col bg-background">
+				<header className="flex h-11 shrink-0 items-center justify-between border-b px-4">
+					<h1 className="text-sm font-semibold">Listing Chat</h1>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setView("feed")}
+					>
+						Back to listings
+					</Button>
+				</header>
+				<ListingChatView />
+			</div>
+		);
+	}
 
+	// ─── Feed view ─────────────────────────────────────────────────────
 	return (
-		<div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4 p-6">
-			<header className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-xl font-semibold">NZ House Hunt</h1>
-					<p className="text-sm text-muted-foreground">
-						{loading ? "Loading listings..." : `${total} listings`}
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
+		<div className="flex h-full flex-col bg-background">
+			<FeedHeader
+				title="NZ House Hunt"
+				subtitle="Rental listings"
+				onPreferences={() => setView("interview")}
+				onChat={() => setView("listing-chat")}
+				onRefresh={feedState.refresh}
+				refreshing={feedState.loading}
+				pipelineSlot={
+					<PipelineStatusBar
+						running={feedState.pipelineRunning}
+						statusText={feedState.pipelineStatus ?? undefined}
+						stats={feedState.pipelineStats}
+						onRunPipeline={feedState.runPipeline}
+						disabled={feedState.pipelineRunning}
+					/>
+				}
+			/>
+
+			{/* Warning: no preference profile */}
+			{!profileExists && profileExists !== null && (
+				<div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+					No preference profile set.{" "}
 					<button
 						type="button"
-						className="rounded-md border px-3 py-2 text-sm"
-						onClick={() => void loadListings()}
-						disabled={loading || runningPipeline}
+						className="underline"
+						onClick={() => setView("interview")}
 					>
-						Refresh
-					</button>
-					<button
-						type="button"
-						className="rounded-md bg-foreground px-3 py-2 text-sm text-background"
-						onClick={() => void runPipeline()}
-						disabled={runningPipeline}
-					>
-						{runningPipeline ? "Running..." : "Run Pipeline"}
-					</button>
+						Set up your preferences
+					</button>{" "}
+					to enable AI-powered discovery and rating.
 				</div>
-			</header>
+			)}
 
-			{lastRunId ? (
-				<p className="text-xs text-muted-foreground">Last run id: {lastRunId}</p>
-			) : null}
-			{error ? (
-				<p className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-					{error}
-				</p>
-			) : null}
+			{/* Error banner */}
+			{feedState.error && (
+				<div className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+					{feedState.error}
+				</div>
+			)}
 
-			<section className="grid gap-3 overflow-auto pb-4">
-				{!loading && listings.length === 0 ? (
-					<p className="text-sm text-muted-foreground">
-						No listings yet. Run the pipeline to discover listings.
-					</p>
-				) : null}
-				{listings.map((listing) => (
-					<article key={listing.id} className="rounded-md border p-3">
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<h2 className="font-medium">{listing.title}</h2>
-							<span className="text-xs text-muted-foreground">
-								{listing.userRating ?? "-"} user | {listing.aiRating ?? "-"} ai
-							</span>
-						</div>
-						<p className="mt-1 text-sm text-muted-foreground">{listing.sourceUrl}</p>
-						<p className="mt-2 text-sm">
-							{listing.suburb} · {listing.bedrooms} bed · ${listing.weeklyRent}/wk
-						</p>
-						<p className="mt-2 text-xs text-muted-foreground">
-							Discovered{" "}
-							{new Date(listing.discoveredAt as unknown as string).toLocaleString()}
-						</p>
-					</article>
-				))}
-			</section>
+			<ListingFeed
+				listings={feedState.listings}
+				total={feedState.total}
+				loading={feedState.loading}
+				activeFilter={feedState.activeFilter}
+				onFilterChange={feedState.setFilter}
+				sortBy={feedState.sortBy}
+				onSortChange={feedState.setSortBy}
+				onLoadMore={feedState.loadMore}
+				hasMore={feedState.hasMore}
+				loadingMore={feedState.loadingMore}
+				onRate={feedState.rateListing}
+				onRateNote={feedState.rateListingNote}
+				onArchive={feedState.archiveListing}
+				renderFields={(listing) => (
+					<RentalListingFields listing={listing} />
+				)}
+			/>
 		</div>
 	);
 }

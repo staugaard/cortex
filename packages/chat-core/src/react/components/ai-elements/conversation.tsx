@@ -2,8 +2,7 @@
 
 import type { ComponentProps } from "react";
 
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Button, cn } from "@cortex/core-ui";
 import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";

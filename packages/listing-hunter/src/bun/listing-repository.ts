@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { eq, sql, and, desc } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { baseListingKeys } from "../types/index.js";
-import type { BaseListing, ListingFilter } from "../types/index.js";
+import type { BaseListing, ListingFilter, ListingSort } from "../types/index.js";
 import { listings } from "./schema.js";
 
 type ListingRow = typeof listings.$inferSelect;
@@ -10,8 +10,13 @@ type ListingRow = typeof listings.$inferSelect;
 export interface ListingRepository<T extends BaseListing> {
 	insert(listing: T): void;
 	getById(id: string): T | null;
-	query(filter: ListingFilter, limit?: number, offset?: number): { listings: T[]; total: number };
+	query(filter: ListingFilter, sort?: ListingSort, limit?: number, offset?: number): { listings: T[]; total: number };
+	queryUnrated(limit?: number): T[];
+	queryUnenriched(limit?: number): T[];
 	updateRating(id: string, userRating: number, userNote?: string): T | null;
+	updateAiRating(id: string, aiRating: number, aiRatingReason: string): void;
+	updateMetadata(id: string, updates: Partial<T>): void;
+	markEnriched(id: string): void;
 	archive(id: string): void;
 	existsBySourceKey(sourceName: string, sourceId: string): boolean;
 }
@@ -110,7 +115,7 @@ export function createListingRepository<T extends BaseListing>(
 			return rowToListing(rows[0]);
 		},
 
-		query(filter: ListingFilter, limit = 50, offset = 0): { listings: T[]; total: number } {
+		query(filter: ListingFilter, sort: ListingSort = "rating", limit = 50, offset = 0): { listings: T[]; total: number } {
 			const condition =
 				filter === "new"
 					? and(eq(listings.archived, false), sql`${listings.userRating} IS NULL`)
@@ -127,11 +132,16 @@ export function createListingRepository<T extends BaseListing>(
 				.all();
 			const total = totalRows[0]?.count ?? 0;
 
+			const orderBy =
+				sort === "newest"
+					? [desc(listings.discoveredAt)]
+					: [sql`${listings.aiRating} DESC NULLS LAST`, desc(listings.discoveredAt)];
+
 			const rows = db
 				.select()
 				.from(listings)
 				.where(condition)
-				.orderBy(desc(listings.discoveredAt))
+				.orderBy(...orderBy)
 				.limit(limit)
 				.offset(offset)
 				.all();
@@ -140,6 +150,50 @@ export function createListingRepository<T extends BaseListing>(
 				listings: rows.map(rowToListing),
 				total,
 			};
+		},
+
+		queryUnrated(limit = 100): T[] {
+			const rows = db
+				.select()
+				.from(listings)
+				.where(
+					and(
+						eq(listings.archived, false),
+						sql`${listings.aiRating} IS NULL`,
+					),
+				)
+				.orderBy(desc(listings.discoveredAt))
+				.limit(limit)
+				.all();
+			return rows.map(rowToListing);
+		},
+
+		queryUnenriched(limit = 100): T[] {
+			const rows = db
+				.select()
+				.from(listings)
+				.where(
+					and(
+						eq(listings.archived, false),
+						sql`${listings.enrichedAt} IS NULL`,
+					),
+				)
+				.orderBy(desc(listings.discoveredAt))
+				.limit(limit)
+				.all();
+			return rows.map(rowToListing);
+		},
+
+		updateAiRating(id: string, aiRating: number, aiRatingReason: string): void {
+			const now = new Date().toISOString();
+			db.update(listings)
+				.set({
+					aiRating,
+					aiRatingReason,
+					updatedAt: now,
+				})
+				.where(eq(listings.id, id))
+				.run();
 		},
 
 		updateRating(id: string, userRating: number, userNote?: string): T | null {
@@ -154,6 +208,33 @@ export function createListingRepository<T extends BaseListing>(
 				.where(eq(listings.id, id))
 				.run();
 			return this.getById(id);
+		},
+
+		updateMetadata(id: string, updates: Partial<T>): void {
+			const now = new Date().toISOString();
+			const rows = db
+				.select({ metadata: listings.metadata })
+				.from(listings)
+				.where(eq(listings.id, id))
+				.all();
+			if (rows.length === 0) return;
+
+			const currentMetadata = rows[0].metadata as Record<string, unknown>;
+			const { metadata: newMetadata } = splitMetadata(updates as T);
+			const mergedMetadata = { ...currentMetadata, ...newMetadata };
+
+			db.update(listings)
+				.set({ metadata: mergedMetadata, updatedAt: now })
+				.where(eq(listings.id, id))
+				.run();
+		},
+
+		markEnriched(id: string): void {
+			const now = new Date().toISOString();
+			db.update(listings)
+				.set({ enrichedAt: now, updatedAt: now })
+				.where(eq(listings.id, id))
+				.run();
 		},
 
 		archive(id: string): void {

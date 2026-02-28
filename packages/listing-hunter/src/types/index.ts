@@ -34,12 +34,17 @@ export type PipelineRunStats = {
 	discovered: number;
 	duplicates: number;
 	new: number;
+	enriched?: number;
 	rated: number;
+	backfilledEnrichment?: number;
+	reRated?: number;
 };
 
 // ─── Listing Filter ──────────────────────────────────────────────────────────
 
 export type ListingFilter = "new" | "shortlist" | "all" | "archived";
+
+export type ListingSort = "rating" | "newest";
 
 // ─── Base field keys ─────────────────────────────────────────────────────────
 // Used by the database layer to split base columns from metadata JSON.

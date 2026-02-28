@@ -12,6 +12,7 @@
         "@ai-sdk/anthropic": "^3.0.46",
         "@ai-sdk/react": "^3.0.99",
         "@cortex/chat-core": "workspace:*",
+        "@cortex/core-ui": "workspace:*",
         "ai": "^6.0.97",
         "electrobun": "1.13.1",
         "react": "^19.2.4",
@@ -33,16 +34,14 @@
       "name": "nz-house-hunt",
       "version": "0.0.1",
       "dependencies": {
+        "@ai-sdk/react": "^3.0.99",
+        "@cortex/chat-core": "workspace:*",
+        "@cortex/core-ui": "workspace:*",
         "@cortex/listing-hunter": "workspace:*",
         "ai": "^6.0.97",
-        "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
         "electrobun": "1.13.1",
-        "lucide-react": "^0.575.0",
-        "radix-ui": "^1.4.3",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
-        "tailwind-merge": "^3.5.0",
         "zod": "^3.25.7",
       },
       "devDependencies": {
@@ -61,14 +60,11 @@
       "name": "template-electrobun",
       "version": "0.0.1",
       "dependencies": {
-        "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
+        "@cortex/core-ui": "workspace:*",
         "electrobun": "1.13.1",
         "lucide-react": "^0.575.0",
-        "radix-ui": "^1.4.3",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
-        "tailwind-merge": "^3.5.0",
       },
       "devDependencies": {
         "@tailwindcss/vite": "^4.2.0",
@@ -86,22 +82,17 @@
       "name": "@cortex/chat-core",
       "version": "0.0.0",
       "dependencies": {
+        "@cortex/core-ui": "workspace:*",
         "@radix-ui/react-use-controllable-state": "^1.2.2",
         "@streamdown/cjk": "^1.0.2",
         "@streamdown/code": "^1.0.3",
         "@streamdown/math": "^1.0.2",
         "@streamdown/mermaid": "^1.0.2",
-        "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
-        "cmdk": "^1.1.1",
-        "embla-carousel-react": "^8.6.0",
         "lucide-react": "^0.575.0",
         "motion": "^12.34.3",
         "nanoid": "^5.1.6",
-        "radix-ui": "^1.4.3",
         "shiki": "^3.22.0",
         "streamdown": "^2.3.0",
-        "tailwind-merge": "^3.5.0",
         "use-stick-to-bottom": "^1.1.3",
       },
       "devDependencies": {
@@ -126,18 +117,46 @@
         "react-dom": "^19.2.4",
       },
     },
+    "packages/core-ui": {
+      "name": "@cortex/core-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "cmdk": "^1.1.1",
+        "embla-carousel-react": "^8.6.0",
+        "lucide-react": "^0.575.0",
+        "radix-ui": "^1.4.3",
+        "tailwind-merge": "^3.5.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+      },
+    },
     "packages/listing-hunter": {
       "name": "@cortex/listing-hunter",
       "version": "0.0.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.46",
+        "@cortex/core-ui": "workspace:*",
         "ai": "^6.0.97",
         "drizzle-orm": "^0.44.2",
+        "lucide-react": "^0.575.0",
         "zod": "^3.25.7",
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@types/react": "^19.2.14",
         "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "react": "^19.2.4",
       },
     },
   },
@@ -215,6 +234,8 @@
     "@chevrotain/utils": ["@chevrotain/utils@11.1.1", "", {}, "sha512-71eTYMzYXYSFPrbg/ZwftSaSDld7UYlS8OQa3lNnn9jzNtpFbaReRRyghzqS7rI3CDaorqpPJJcXGHK+FE1TVQ=="],
 
     "@cortex/chat-core": ["@cortex/chat-core@workspace:packages/chat-core"],
+
+    "@cortex/core-ui": ["@cortex/core-ui@workspace:packages/core-ui"],
 
     "@cortex/listing-hunter": ["@cortex/listing-hunter@workspace:packages/listing-hunter"],
 

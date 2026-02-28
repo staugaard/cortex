@@ -8,9 +8,9 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "../ui/accordion";
-import { Badge } from "../ui/badge";
-import { cn } from "../../lib/utils";
+  Badge,
+  cn,
+} from "@cortex/core-ui";
 import { BotIcon } from "lucide-react";
 import { memo } from "react";
 

@@ -8,6 +8,7 @@
     "src/types/**/*.ts",
     "src/rpc/**/*.ts",
     "src/react/**/*.ts",
+    "src/react/**/*.tsx",
     "src/internal/runtime-tags.ts",
     "tests/typecheck/web-entry.ts"
   ]

@@ -2,12 +2,13 @@
   "name": "cortex",
   "private": true,
   "scripts": {
+    "typecheck:core-ui": "bun run --cwd packages/core-ui typecheck",
     "typecheck:chat-core": "bun run --cwd packages/chat-core typecheck",
     "typecheck:chat": "bun run --cwd apps/chat typecheck",
     "typecheck:template": "bun run --cwd apps/template-electrobun typecheck",
     "typecheck:listing-hunter": "bun run --cwd packages/listing-hunter typecheck",
     "typecheck:nz-house-hunt": "bun run --cwd apps/nz-house-hunt typecheck",
-    "typecheck:phase1": "bun run typecheck:chat-core && bun run typecheck:chat"
+    "typecheck:phase1": "bun run typecheck:core-ui && bun run typecheck:chat-core && bun run typecheck:chat"
   },
   "workspaces": [
     "apps/*",

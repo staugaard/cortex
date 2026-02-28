@@ -16,7 +16,7 @@ import {
 	PromptInputSubmit,
 	PromptInputTextarea,
 } from "./components/ai-elements/prompt-input";
-import { cn } from "./lib/utils";
+import { cn } from "@cortex/core-ui";
 import { renderMessagePart } from "./part-renderers";
 import type { ChatConversationProps } from "./types";
 

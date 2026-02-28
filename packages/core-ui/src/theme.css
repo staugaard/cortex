@@ -1,0 +1,25 @@
+@theme {
+	--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+
+	/* shadcn/ui color system (neutral, light) */
+	--color-background: #ffffff;
+	--color-foreground: #1d1d1f;
+	--color-card: #ffffff;
+	--color-card-foreground: #1d1d1f;
+	--color-popover: #ffffff;
+	--color-popover-foreground: #1d1d1f;
+	--color-primary: #1d1d1f;
+	--color-primary-foreground: #ffffff;
+	--color-secondary: #f5f5f7;
+	--color-secondary-foreground: #1d1d1f;
+	--color-muted: #f5f5f7;
+	--color-muted-foreground: #86868b;
+	--color-accent: #f5f5f7;
+	--color-accent-foreground: #1d1d1f;
+	--color-destructive: #ff3b30;
+	--color-destructive-foreground: #ffffff;
+	--color-border: rgba(0, 0, 0, 0.09);
+	--color-input: rgba(0, 0, 0, 0.09);
+	--color-ring: #007aff;
+	--radius: 0.5rem;
+}

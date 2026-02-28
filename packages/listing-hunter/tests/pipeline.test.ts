@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { baseListingSchema } from "../src/types/index.js";
 import { createListingHunter } from "../src/bun/listing-hunter.js";
-import { runPipeline, type DiscoverFn } from "../src/bun/pipeline.js";
+import { runPipeline, type DiscoverFn, type EnrichFn } from "../src/bun/pipeline.js";
 import type { DiscoveryAgentOptions, DiscoveryResult } from "../src/bun/discovery-agent.js";
 import type { RateFn, RatingResult } from "../src/bun/rating-agent.js";
 
@@ -449,6 +449,231 @@ describe("Pipeline", () => {
 			expect(latest).not.toBeNull();
 			expect(latest!.status).toBe("failed");
 			expect(latest!.error).toBe("Disk I/O error");
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("enrichment merges data into listings", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			const listing = makeListing({ sourceId: "enrich-1" });
+
+			const mockEnrich: EnrichFn<RentalListing> = async () => ({
+				suburb: "Enriched Suburb",
+			});
+
+			const result = await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([listing]),
+				enrich: mockEnrich,
+				enrichmentPrompt: "Enrich this listing",
+				rate: createMockRate(),
+			});
+
+			expect(result.stats.enriched).toBe(1);
+
+			const stored = hunter.listings.getById(listing.id);
+			expect(stored).not.toBeNull();
+			expect(stored!.suburb).toBe("Enriched Suburb");
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("enrichment failure is non-fatal — listings still stored and rated", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			const listing = makeListing({ sourceId: "enrich-fail-1" });
+
+			const failingEnrich: EnrichFn<RentalListing> = async () => {
+				throw new Error("Enrichment agent exploded");
+			};
+
+			const result = await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([listing]),
+				enrich: failingEnrich,
+				enrichmentPrompt: "Enrich this listing",
+				rate: createMockRate(),
+			});
+
+			expect(result.stats.enriched).toBe(0);
+			expect(result.stats.new).toBe(1);
+			expect(result.stats.rated).toBe(1);
+
+			const stored = hunter.listings.getById(listing.id);
+			expect(stored).not.toBeNull();
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("enrichment receives correct args: listing, prompt, and preference profile", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			hunter.documents.set(
+				"preference_profile",
+				"Commutes to Newmarket by bus",
+			);
+
+			const listing = makeListing({ sourceId: "enrich-args-1" });
+			let capturedListing: RentalListing | null = null;
+			let capturedPrompt: string | null = null;
+			let capturedProfile: string | null = null;
+
+			const capturingEnrich: EnrichFn<RentalListing> = async (l, prompt, profile) => {
+				capturedListing = l as RentalListing;
+				capturedPrompt = prompt;
+				capturedProfile = profile;
+				return null;
+			};
+
+			await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([listing]),
+				enrich: capturingEnrich,
+				enrichmentPrompt: "Add commute data",
+				rate: createMockRate(),
+			});
+
+			expect(capturedListing).not.toBeNull();
+			expect(capturedListing!.sourceId).toBe("enrich-args-1");
+			expect(capturedPrompt).toBe("Add commute data");
+			expect(capturedProfile).toBe("Commutes to Newmarket by bus");
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("self-heal enriches unenriched listings and re-rates them", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			// Pre-insert a listing without enrichment (simulates a failed enrichment run)
+			hunter.listings.insert(
+				makeListing({ sourceId: "unenriched-1", sourceName: "test", aiRating: 3, aiRatingReason: "OK" }),
+			);
+
+			hunter.documents.set("preference_profile", "Likes Ponsonby");
+
+			let enrichCallCount = 0;
+			const mockEnrich: EnrichFn<RentalListing> = async () => {
+				enrichCallCount++;
+				return { suburb: "Enriched Ponsonby" };
+			};
+
+			let rateCallCount = 0;
+			const mockRate: RateFn<RentalListing> = async () => {
+				rateCallCount++;
+				return { rating: 5, reason: "Great after enrichment" };
+			};
+
+			// Run pipeline with no new discoveries — should trigger self-heal
+			const result = await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([]),
+				enrich: mockEnrich,
+				enrichmentPrompt: "Enrich this listing",
+				rate: mockRate,
+			});
+
+			expect(result.stats.backfilledEnrichment).toBe(1);
+			expect(result.stats.reRated).toBe(1);
+			expect(enrichCallCount).toBe(1);
+			// rate is called once for re-rating the backfilled listing
+			expect(rateCallCount).toBeGreaterThanOrEqual(1);
+
+			// Verify the listing was updated in the DB
+			const stored = hunter.listings.query("all");
+			expect(stored.listings[0].suburb).toBe("Enriched Ponsonby");
+			expect(stored.listings[0].aiRating).toBe(5);
+			expect(stored.listings[0].aiRatingReason).toBe("Great after enrichment");
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("self-heal enrichment failure is non-fatal", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			hunter.listings.insert(
+				makeListing({ sourceId: "unenriched-fail-1", sourceName: "test" }),
+			);
+
+			const failingEnrich: EnrichFn<RentalListing> = async () => {
+				throw new Error("Enrichment service down");
+			};
+
+			// Should complete without throwing
+			const result = await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([]),
+				enrich: failingEnrich,
+				enrichmentPrompt: "Enrich this listing",
+				rate: createMockRate(),
+			});
+
+			expect(result.stats.backfilledEnrichment).toBe(0);
+			expect(result.stats.reRated).toBe(0);
+
+			// Listing should still be unenriched (will be retried next run)
+			const unenriched = hunter.listings.queryUnenriched();
+			expect(unenriched.length).toBe(1);
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("newly enriched listings get enrichedAt set via markEnriched", async () => {
+		const { hunter, cleanup } = createTestHunter();
+		try {
+			const listing = makeListing({ sourceId: "mark-enriched-1" });
+
+			const mockEnrich: EnrichFn<RentalListing> = async () => ({
+				suburb: "Enriched",
+			});
+
+			await runPipeline({
+				schema: rentalSchema,
+				sourceTools: {},
+				sourceName: "test",
+				listings: hunter.listings,
+				pipelineRuns: hunter.pipelineRuns,
+				documents: hunter.documents,
+				discover: createMockDiscover([listing]),
+				enrich: mockEnrich,
+				enrichmentPrompt: "Enrich",
+				rate: createMockRate(),
+			});
+
+			// After enrichment + insert + markEnriched, the listing should NOT appear as unenriched
+			const unenriched = hunter.listings.queryUnenriched();
+			expect(unenriched.length).toBe(0);
 		} finally {
 			cleanup();
 		}

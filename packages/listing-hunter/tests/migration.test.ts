@@ -54,7 +54,7 @@ describe("ensureSchema", () => {
 			const version = db
 				.query("SELECT MAX(version) AS version FROM schema_migrations")
 				.get() as { version: number };
-			expect(version.version).toBe(1);
+			expect(version.version).toBe(2);
 		} finally {
 			cleanup();
 		}

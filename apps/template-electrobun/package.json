@@ -12,18 +12,16 @@
 		"build:prod": "vite build && electrobun build --channel prod",
 		"start": "bun run dev",
 		"typecheck": "tsc -p tsconfig.json --pretty false",
+		"dev:stop": "bun scripts/stop-testing-session.mjs",
 		"cdp:check": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/version",
 		"cdp:targets": "curl -sf http://localhost:${ELECTROBUN_REMOTE_DEBUG_PORT:-9222}/json/list"
 	},
 	"dependencies": {
-		"class-variance-authority": "^0.7.1",
-		"clsx": "^2.1.1",
+		"@cortex/core-ui": "workspace:*",
 		"electrobun": "1.13.1",
 		"lucide-react": "^0.575.0",
-		"radix-ui": "^1.4.3",
 		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
-		"tailwind-merge": "^3.5.0"
+		"react-dom": "^19.2.4"
 	},
 	"devDependencies": {
 		"@tailwindcss/vite": "^4.2.0",

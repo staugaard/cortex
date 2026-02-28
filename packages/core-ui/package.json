@@ -1,0 +1,32 @@
+{
+	"name": "@cortex/core-ui",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./lib": "./src/lib/utils.ts",
+		"./theme.css": "./src/theme.css"
+	},
+	"scripts": {
+		"typecheck": "tsc -p tsconfig.web.json --pretty false"
+	},
+	"peerDependencies": {
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4"
+	},
+	"dependencies": {
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"cmdk": "^1.1.1",
+		"embla-carousel-react": "^8.6.0",
+		"lucide-react": "^0.575.0",
+		"radix-ui": "^1.4.3",
+		"tailwind-merge": "^3.5.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"typescript": "^5.9.3"
+	}
+}

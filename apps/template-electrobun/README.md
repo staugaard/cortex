@@ -63,6 +63,8 @@ If you don't need HMR, `bun run dev` does a one-shot Vite build then launches El
 
 ## Verifying UI in the app
 
+For the full automation and verification workflow, see `docs/automation-runbook.md`.
+
 ### Why you can't just open localhost:5174 in a browser
 
 The Vite dev server runs on `http://localhost:5174`, but **do not open that URL in a regular browser tab to test your app**. The Electrobun RPC bridge (`Electroview`) requires native globals (`__electrobunWebviewId`, `__electrobunRpcSocketPort`) that are injected by the Electrobun shell. A standalone browser tab does not have these globals, so the RPC bridge fails to initialize and the app will appear blank or broken.
@@ -94,18 +96,7 @@ When you need screenshots or scripted verification, use CEF mode with Chrome Dev
    ```
    Expected: JSON array with a page target for `http://localhost:5174/`.
 
-4. Capture a screenshot of the running app:
-   ```sh
-   bun run cdp:screenshot
-   ```
-   Saves to `output/playwright/screenshot.png`.
-
-The screenshot script uses Playwright's `chromium.connectOverCDP()` to attach to the embedded webview inside the Electrobun shell — not a standalone browser. See `scripts/cdp-screenshot.mjs` for the implementation.
-
-Environment variables for the screenshot script:
-- `CDP_ENDPOINT` (default: `http://127.0.0.1:9222`)
-- `CDP_SCREENSHOT` (default: `output/playwright/screenshot.png`)
-- `CDP_WAIT_MS` (default: `1000`) — delay before capturing
+For interactive automation (screenshots, DOM inspection, form filling), use `playwright-cli`. See `/docs/playwright-cli-guide.md`.
 
 ## Scripts
 
@@ -115,11 +106,11 @@ Environment variables for the screenshot script:
 | `bun run dev:hmr` | Vite HMR + Electrobun dev (recommended) |
 | `bun run dev:cef` | Build + start with CEF renderer (CDP on port 9222) |
 | `bun run dev:hmr:cef` | HMR + CEF renderer |
+| `bun run dev:stop` | Clean shutdown of all dev/test processes |
 | `bun run build` | Production build (Vite + Electrobun) |
 | `bun run typecheck` | TypeScript type checking |
 | `bun run cdp:check` | Verify CDP endpoint is alive (requires CEF mode) |
 | `bun run cdp:targets` | List CDP page targets |
-| `bun run cdp:screenshot` | Capture screenshot of running app via CDP |
 
 ## Directory structure
 
@@ -137,6 +128,10 @@ src/
     ├── types.ts         # Shared RPC schema type
     └── lib/
         └── utils.ts     # cn() class merge utility
+scripts/
+└── stop-testing-session.mjs  # Graceful shutdown of dev processes
+docs/
+└── automation-runbook.md     # UI verification workflow
 ```
 
 ## Adding shadcn/ui components

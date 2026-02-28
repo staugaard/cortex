@@ -3,18 +3,16 @@
 import type { UIMessage } from "ai";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 
-import { Button } from "../ui/button";
 import {
+  Button,
   ButtonGroup,
   ButtonGroupText,
-} from "../ui/button-group";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../ui/tooltip";
-import { cn } from "../../lib/utils";
+  cn,
+} from "@cortex/core-ui";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";

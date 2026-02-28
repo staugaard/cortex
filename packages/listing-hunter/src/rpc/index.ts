@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type {
 	DocumentType,
 	ListingFilter,
+	ListingSort,
 	PipelineRunStats,
 } from "../types/index.js";
 
@@ -11,6 +12,7 @@ export type ListingHunterBunRequests<T extends z.ZodObject<z.ZodRawShape>> = {
 	getListings: {
 		params: {
 			filter: ListingFilter;
+			sort?: ListingSort;
 			limit?: number;
 			offset?: number;
 		};

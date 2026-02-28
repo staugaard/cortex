@@ -17,7 +17,9 @@ export type RateFn<T extends BaseListing = BaseListing> = (
 const RATING_MODEL_ID = "claude-sonnet-4-6";
 
 const ratingSchema = z.object({
-	rating: z.number().int().min(1).max(5),
+	rating: z
+		.number()
+		.describe("Rating from 1 (terrible fit) to 5 (excellent fit)"),
 	reason: z.string(),
 });
 

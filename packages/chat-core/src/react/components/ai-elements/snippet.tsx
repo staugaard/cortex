@@ -8,8 +8,8 @@ import {
   InputGroupButton,
   InputGroupInput,
   InputGroupText,
-} from "../ui/input-group";
-import { cn } from "../../lib/utils";
+  cn,
+} from "@cortex/core-ui";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import {
   createContext,

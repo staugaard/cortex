@@ -7,6 +7,8 @@ Minimal Electrobun app template. Copy this to create new apps in the monorepo.
 - `src/bun/` — Native process code (Bun runtime, `electrobun/bun` APIs). No DOM.
 - `src/mainview/` — Webview code (React, browser context, `electrobun/view`). No Bun/Node APIs.
 - `src/mainview/types.ts` — Shared RPC schema type used by both sides.
+- `scripts/` — Dev tooling scripts (shutdown, etc.).
+- `docs/automation-runbook.md` — Required workflow for real in-app UI automation and verification.
 
 ## Runtime Boundary Rules
 
@@ -53,13 +55,14 @@ When you need screenshots or scripted verification, use CEF mode with CDP:
    bun run --cwd apps/template-electrobun cdp:check
    ```
 
-3. Capture a screenshot:
-   ```sh
-   bun run --cwd apps/template-electrobun cdp:screenshot
-   ```
-   Saves to `output/playwright/screenshot.png`.
+3. Use `playwright-cli` for interactive automation. See `/docs/playwright-cli-guide.md`.
 
-Use CDP-aware tools (Playwright `chromium.connectOverCDP`) to attach to the running embedded webview — not a standalone browser tab. See `scripts/cdp-screenshot.mjs` for the implementation.
+4. Clean shutdown:
+   ```sh
+   bun run --cwd apps/template-electrobun dev:stop
+   ```
+
+For the full verification workflow, see `docs/automation-runbook.md`.
 
 ## Validation
 

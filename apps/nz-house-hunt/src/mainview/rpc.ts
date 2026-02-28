@@ -21,6 +21,9 @@ export const appRpc = Electroview.defineRPC<AppSchema>({
 			documentsUpdated: (payload) => {
 				console.log(`Document updated: ${payload.type}`);
 			},
+			agentChunk: () => {},
+			agentDone: () => {},
+			agentError: () => {},
 		},
 	},
 });

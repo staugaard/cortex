@@ -15,14 +15,20 @@
     "typecheck": "bun run typecheck:web && bun run typecheck:bun",
     "test": "bun test"
   },
+  "peerDependencies": {
+    "react": "^19.2.4"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",
+    "@cortex/core-ui": "workspace:*",
+    "lucide-react": "^0.575.0",
     "ai": "^6.0.97",
     "drizzle-orm": "^0.44.2",
     "zod": "^3.25.7"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/react": "^19.2.14",
     "typescript": "^5.9.3"
   }
 }

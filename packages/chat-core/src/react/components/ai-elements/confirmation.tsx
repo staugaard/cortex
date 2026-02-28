@@ -3,9 +3,7 @@
 import type { ToolUIPart } from "ai";
 import type { ComponentProps, ReactNode } from "react";
 
-import { Alert, AlertDescription } from "../ui/alert";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Alert, AlertDescription, Button, cn } from "@cortex/core-ui";
 import { createContext, useContext } from "react";
 
 type ToolUIPartApproval =
