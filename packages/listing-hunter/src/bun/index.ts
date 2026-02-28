@@ -18,3 +18,4 @@ export { createDefaultEnrichFn } from "./enrichment-agent.js";
 export { type RatingResult, type RateFn } from "./rating-agent.js";
 export { type CalibrateFn } from "./calibration-agent.js";
 export { createInterviewAgent, type InterviewAgentOptions, INTERVIEW_MODEL_ID } from "./interview-agent.js";
+export { createListingChatAgent, type ListingChatAgentOptions, LISTING_CHAT_MODEL_ID } from "./listing-chat-agent.js";

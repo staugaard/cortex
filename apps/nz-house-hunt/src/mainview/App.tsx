@@ -9,8 +9,9 @@ import { appRpc } from "./rpc";
 import { useFeedState } from "./use-feed-state";
 import { RentalListingFields } from "./RentalListingFields";
 import { InterviewView } from "./InterviewView";
+import { ListingChatView } from "./ListingChatView";
 
-type View = "feed" | "interview";
+type View = "feed" | "interview" | "listing-chat";
 
 export default function App() {
 	const [view, setView] = useState<View>("feed");
@@ -53,6 +54,25 @@ export default function App() {
 		);
 	}
 
+	// ─── Listing chat view ────────────────────────────────────────────
+	if (view === "listing-chat") {
+		return (
+			<div className="flex h-full flex-col bg-background">
+				<header className="flex h-11 shrink-0 items-center justify-between border-b px-4">
+					<h1 className="text-sm font-semibold">Listing Chat</h1>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setView("feed")}
+					>
+						Back to listings
+					</Button>
+				</header>
+				<ListingChatView />
+			</div>
+		);
+	}
+
 	// ─── Feed view ─────────────────────────────────────────────────────
 	return (
 		<div className="flex h-full flex-col bg-background">
@@ -60,6 +80,7 @@ export default function App() {
 				title="NZ House Hunt"
 				subtitle="Rental listings"
 				onPreferences={() => setView("interview")}
+				onChat={() => setView("listing-chat")}
 				onRefresh={feedState.refresh}
 				refreshing={feedState.loading}
 				pipelineSlot={

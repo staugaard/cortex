@@ -6,12 +6,13 @@ import {
 	TooltipContent,
 	TooltipProvider,
 } from "@cortex/core-ui";
-import { Settings2, RefreshCw } from "lucide-react";
+import { Settings2, RefreshCw, MessageCircle } from "lucide-react";
 
 export type FeedHeaderProps = {
 	title: string;
 	subtitle?: string;
 	onPreferences: () => void;
+	onChat?: () => void;
 	onRefresh: () => void;
 	refreshing?: boolean;
 	pipelineSlot?: React.ReactNode;
@@ -22,6 +23,7 @@ export function FeedHeader({
 	title,
 	subtitle,
 	onPreferences,
+	onChat,
 	onRefresh,
 	refreshing,
 	pipelineSlot,
@@ -65,6 +67,23 @@ export function FeedHeader({
 						<TooltipContent>Preferences</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>
+
+				{onChat && (
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon-xs"
+									onClick={onChat}
+								>
+									<MessageCircle className="size-3.5" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Chat</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+				)}
 
 				<TooltipProvider>
 					<Tooltip>
