@@ -46,6 +46,29 @@ export function RentalListingFields({ listing }: RentalListingFieldsProps) {
 					{listing.propertyType}
 				</Badge>
 			</div>
+
+			{/* Personalized summary */}
+			{listing.personalizedSummary && (
+				<p className="mt-1.5 text-xs text-foreground/80 border-t border-dashed pt-1.5">
+					{listing.personalizedSummary}
+				</p>
+			)}
+
+			{/* Commute + neighbourhood details */}
+			{(listing.commuteEstimate || listing.neighbourhoodDescription) && (
+				<div className="space-y-0.5">
+					{listing.commuteEstimate && (
+						<p className="text-[11px] text-muted-foreground">
+							<span className="font-medium">Commute:</span> {listing.commuteEstimate}
+						</p>
+					)}
+					{listing.neighbourhoodDescription && (
+						<p className="text-[11px] text-muted-foreground">
+							<span className="font-medium">Area:</span> {listing.neighbourhoodDescription}
+						</p>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

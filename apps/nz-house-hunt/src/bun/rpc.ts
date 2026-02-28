@@ -14,11 +14,14 @@ import { createInterviewAgent } from "@cortex/listing-hunter/bun";
 import type { AppSchema, InterviewUIMessage, InterviewUIChunk } from "../mainview/types";
 import type { ListingHunter } from "@cortex/listing-hunter/bun";
 import type { RentalListing } from "./listing-schema";
+import type { ToolSet } from "ai";
 
 export function createAppRpc(options: {
 	hunter: ListingHunter<RentalListing>;
 	schema: ZodObject<ZodRawShape>;
 	chatDbPath: string;
+	interviewHints?: string;
+	interviewTools?: ToolSet;
 }) {
 	const chatRepository = createSqliteChatRepository<InterviewUIMessage>({
 		dbPath: options.chatDbPath,
@@ -29,6 +32,8 @@ export function createAppRpc(options: {
 			const agent = createInterviewAgent({
 				schema: options.schema,
 				documents: options.hunter.documents,
+				interviewHints: options.interviewHints,
+				interviewTools: options.interviewTools,
 			});
 			const { stream } = await createAgentLoopUIChunkStream({
 				agent,
